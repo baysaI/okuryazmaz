@@ -54,7 +54,7 @@ app.all('/api/*', (req, res) => {
 });
 
 // Sitemap için devasa bir kitap havuzunu asenkron olarak dolduralım (Programatik SEO)
-let cachedPopularBooks = [];
+app.locals.cachedPopularBooks = [];
 const axios = require('axios');
 
 function slugify(text) {
@@ -97,19 +97,25 @@ async function fetchPopularBooksForSitemap() {
                 res.data.docs.forEach(w => {
                     if (w.key) {
                         const key = w.key.replace('/works/', '');
-                        if (!cachedPopularBooks.find(b => b.key === key)) {
-                            cachedPopularBooks.push({ key, slug: slugify(w.title) });
+                        if (!app.locals.cachedPopularBooks.find(b => b.key === key)) {
+                            app.locals.cachedPopularBooks.push({ 
+                                key, 
+                                slug: slugify(w.title),
+                                title: w.title,
+                                cover_i: w.cover_i || null,
+                                author_name: w.author_name ? w.author_name[0] : 'Bilinmeyen Yazar'
+                            });
                         }
                     }
                 });
-                console.log(`[SEO] Hedef Sorgu Eklendi: ${item.q} | Toplam Kitap: ${cachedPopularBooks.length}`);
+                console.log(`[SEO] Hedef Sorgu Eklendi: ${item.q} | Toplam Kitap: ${app.locals.cachedPopularBooks.length}`);
             }
         } catch(e) {
             console.error(`[SEO] ${item.q} çekilirken hata:`, e.message);
         }
         await new Promise(resolve => setTimeout(resolve, 2000));
     }
-    console.log(`[SEO] MÜKEMMEL! Türk okur kitlesine özel toplam ${cachedPopularBooks.length} kitap sitemap için belleğe alındı.`);
+    console.log(`[SEO] MÜKEMMEL! Türk okur kitlesine özel toplam ${app.locals.cachedPopularBooks.length} kitap sitemap için belleğe alındı.`);
 }
 fetchPopularBooksForSitemap(); // Sunucu başlarken arka planda çalışmaya başlar
 
@@ -164,7 +170,7 @@ app.get('/sitemap.xml', (req, res) => {
         
         // Veritabanındaki benzersiz kitaplar
         db.all("SELECT DISTINCT book_key, book_reference_title FROM topics WHERE book_key IS NOT NULL", [], (err, dbBooks) => {
-            let combinedBooks = [...cachedPopularBooks];
+            let combinedBooks = [...app.locals.cachedPopularBooks];
             
             if (!err && dbBooks) {
                 dbBooks.forEach(b => {

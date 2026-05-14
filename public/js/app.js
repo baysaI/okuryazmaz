@@ -140,11 +140,16 @@ const app = {
 
     translateText: async (text) => {
         if (!text || text.trim() === '') return text;
+        const cacheKey = 'tr_' + encodeURIComponent(text).substring(0, 100);
+        if (sessionStorage.getItem(cacheKey)) return sessionStorage.getItem(cacheKey);
+        
         try {
             const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=tr&dt=t&q=${encodeURIComponent(text)}`;
             const res = await fetch(url);
             const data = await res.json();
-            return data[0].map(item => item[0]).join('');
+            const translated = data[0].map(item => item[0]).join('');
+            sessionStorage.setItem(cacheKey, translated);
+            return translated;
         } catch (e) {
             console.error('Çeviri hatası:', e);
             return text; // Hata olursa orijinal metni döndür
@@ -442,9 +447,16 @@ const app = {
         document.getElementById('dynamic-book-related-topics').innerHTML = '<div class="loading-pulse">Konular yükleniyor...</div>';
 
         try {
-            const res = await fetch(`https://openlibrary.org/works/${bookKey}.json`);
-            if (!res.ok) throw new Error('Kitap bulunamadı.');
-            const book = await res.json();
+            let book = null;
+            const cacheKey = 'ol_book_' + bookKey;
+            if (sessionStorage.getItem(cacheKey)) {
+                book = JSON.parse(sessionStorage.getItem(cacheKey));
+            } else {
+                const res = await fetch(`https://openlibrary.org/works/${bookKey}.json`);
+                if (!res.ok) throw new Error('Kitap bulunamadı.');
+                book = await res.json();
+                sessionStorage.setItem(cacheKey, JSON.stringify(book));
+            }
 
             // Set URL with proper slug
             window.history.replaceState({}, '', `/kitap/${bookKey}-${app.slugify(book.title)}`);
@@ -468,6 +480,8 @@ const app = {
                 finalDesc = await app.translateText(shortDesc);
             }
             document.getElementById('dynamic-book-desc').innerText = finalDesc;
+
+            app.loadBookRatings(bookKey);
 
             // Start topic button action
             const btnStart = document.getElementById('btn-dynamic-book-start');
@@ -538,6 +552,63 @@ const app = {
         } catch (e) {
             document.getElementById('dynamic-book-cover-container').innerHTML = '<p style="color:#e74c3c;">Eser bilgileri kütüphaneden çekilemedi.</p>';
             document.getElementById('dynamic-book-related-topics').innerHTML = '';
+        }
+    },
+
+    async loadBookRatings(bookKey) {
+        try {
+            const uid = app.state.user ? app.state.user.id : 0;
+            const res = await app.apiCall(`/forum/books/${bookKey}/ratings?uid=${uid}`);
+            
+            let userRatingHtml = '';
+            const rating = res.userRating || 0;
+            
+            for (let i = 5; i >= 1; i--) {
+                const checked = (rating === i) ? 'checked' : '';
+                userRatingHtml += `
+                    <input type="radio" id="star${i}" name="rating" value="${i}" ${checked} onclick="app.submitBookRating('${bookKey}', ${i})" />
+                    <label for="star${i}" title="${i} Yıldız"><i class="fa-solid fa-star"></i></label>
+                `;
+            }
+
+            const displayAvg = res.avgRating > 0 ? res.avgRating.toFixed(1) : '0.0';
+            
+            document.getElementById('dynamic-book-rating').innerHTML = `
+                <div class="star-rating-container">
+                    <div class="star-rating">
+                        ${userRatingHtml}
+                    </div>
+                </div>
+                <div class="rating-info">
+                    <strong>${displayAvg}</strong> / 5 (${res.totalRatings} Değerlendirme)
+                </div>
+            `;
+        } catch (e) {
+            console.error('Puanlar çekilemedi:', e);
+        }
+    },
+
+    async submitBookRating(bookKey, rating) {
+        if (!app.state.user) {
+            app.toast('Puan vermek için giriş yapmalısınız.');
+            app.showModal('auth-modal');
+            app.loadBookRatings(bookKey);
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/forum/books/${bookKey}/ratings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${app.state.token}` },
+                body: JSON.stringify({ rating })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Puan verilemedi.');
+            
+            app.toast(data.message || 'Puanınız kaydedildi!');
+            app.loadBookRatings(bookKey);
+        } catch (e) {
+            app.toast(e.message);
         }
     },
 
@@ -1234,40 +1305,9 @@ const app = {
         const container = document.getElementById('home-books-container');
         if (!container) return;
 
-        const turkishAuthors = [
-            'Orhan Pamuk', 'Elif Şafak', 'Sabahattin Ali', 'Yaşar Kemal',
-            'Oğuz Atay', 'Ahmet Hamdi Tanpınar', 'Nazım Hikmet', 'Cemal Süreya',
-            'Halide Edib Adıvar', 'Reşat Nuri Güntekin', 'Peyami Safa', 'Sait Faik Abasıyanık',
-            'Orhan Veli Kanık', 'Necip Fazıl Kısakürek', 'Zülfü Livaneli', 'Ayşe Kulin'
-        ];
-
-        const useTurkish = Math.random() < 0.35;
-        let apiUrl;
-
-        if (useTurkish) {
-            const author = turkishAuthors[Math.floor(Math.random() * turkishAuthors.length)];
-            apiUrl = `https://openlibrary.org/search.json?author=${encodeURIComponent(author)}&limit=6&fields=key,title,author_name,cover_i`;
-        } else {
-            const subjects = [
-                'fiction', 'literary_fiction', 'classic_literature', 'poetry',
-                'philosophy', 'fantasy', 'historical_fiction', 'gothic_fiction',
-                'drama', 'short_stories', 'mythology', 'world_literature'
-            ];
-            const randomSubject = subjects[Math.floor(Math.random() * subjects.length)];
-            apiUrl = `https://openlibrary.org/subjects/${randomSubject}.json?limit=6&offset=${Math.floor(Math.random() * 50)}`;
-        }
-
         try {
-            const res = await fetch(apiUrl);
-            const data = await res.json();
-
-            // Hem subjects (data.works) hem search (data.docs) formatını destekle
-            const books = data.works || (data.docs ? data.docs.map(d => ({
-                key: d.key,
-                title: d.title,
-                cover_id: d.cover_i,
-                authors: d.author_name ? d.author_name.map(n => ({ name: n })) : null
-            })) : []);
+            const res = await app.apiCall('/forum/random-books');
+            const books = res || [];
 
             if (books.length > 0) {
                 container.innerHTML = books.slice(0, 6).map(book => {

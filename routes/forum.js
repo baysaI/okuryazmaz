@@ -57,6 +57,25 @@ router.get('/categories', (req, res) => {
     });
 });
 
+router.get('/random-books', (req, res) => {
+    const pool = req.app.locals.cachedPopularBooks || [];
+    if (pool.length === 0) return res.json([]);
+    
+    // Pick 6 random books
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, 6);
+    
+    // Format to match frontend expectations
+    const formatted = selected.map(b => ({
+        key: '/works/' + b.key,
+        title: b.title,
+        cover_id: b.cover_i,
+        authors: [{ name: b.author_name }]
+    }));
+    
+    res.json(formatted);
+});
+
 router.get('/categories/:id/topics', optionalAuth, (req, res) => {
     const catId = req.params.id;
     let query = `SELECT topics.*, users.username, users.avatar_url,
@@ -507,6 +526,74 @@ router.get('/quotes/authors', (req, res) => {
     db.all("SELECT book_author, COUNT(*) as quote_count FROM quotes WHERE book_author IS NOT NULL AND book_author != '' GROUP BY book_author ORDER BY quote_count DESC", [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json(rows);
+    });
+});
+
+// ==========================================
+// KİTAP PUANLAMA (RATINGS) API
+// ==========================================
+
+// Kitabın Puan Durumunu Getir
+router.get('/books/:key/ratings', (req, res) => {
+    const bookKey = req.params.key.startsWith('OL') ? '/works/' + req.params.key : req.params.key;
+    const currentUserId = req.query.uid || 0;
+
+    const statsQuery = "SELECT AVG(rating) as avgRating, COUNT(rating) as totalRatings FROM book_ratings WHERE book_key LIKE ?";
+    const userQuery = "SELECT rating FROM book_ratings WHERE book_key LIKE ? AND user_id = ?";
+
+    const searchKey = `%${bookKey.replace('/works/', '')}%`;
+
+    db.get(statsQuery, [searchKey], (err, stats) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const result = {
+            avgRating: stats.avgRating ? parseFloat(stats.avgRating.toFixed(1)) : 0,
+            totalRatings: stats.totalRatings || 0,
+            userRating: null
+        };
+
+        if (currentUserId > 0) {
+            db.get(userQuery, [searchKey, currentUserId], (err, userRow) => {
+                if (!err && userRow) result.userRating = userRow.rating;
+                res.json(result);
+            });
+        } else {
+            res.json(result);
+        }
+    });
+});
+
+// Kitaba Puan Ver / Güncelle
+router.post('/books/:key/ratings', requireAuth, (req, res) => {
+    const bookKey = req.params.key.startsWith('OL') ? '/works/' + req.params.key : req.params.key;
+    const userId = req.user.id;
+    const { rating } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: 'Puan 1 ile 5 arasında olmalıdır.' });
+    }
+
+    const searchKey = `%${bookKey.replace('/works/', '')}%`;
+
+    const checkQuery = "SELECT book_key FROM book_ratings WHERE user_id = ? AND book_key LIKE ?";
+    db.get(checkQuery, [userId, searchKey], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        if (row) {
+            // Güncelle
+            db.run("UPDATE book_ratings SET rating = ?, created_at = CURRENT_TIMESTAMP WHERE user_id = ? AND book_key = ?", 
+                [rating, userId, row.book_key], function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: 'Puanınız güncellendi.' });
+            });
+        } else {
+            // Yeni Ekle
+            db.run("INSERT INTO book_ratings (user_id, book_key, rating) VALUES (?, ?, ?)", 
+                [userId, bookKey, rating], function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+                res.status(201).json({ message: 'Puanınız eklendi.' });
+            });
+        }
     });
 });
 

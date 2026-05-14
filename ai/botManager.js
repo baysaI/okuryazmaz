@@ -186,7 +186,13 @@ async function postNewQuote(bot) {
 
             db.run('INSERT INTO quotes (user_id, book_title, book_key, book_author, book_cover_url, content) VALUES (?, ?, ?, ?, ?, ?)', 
                 [bot.id, data.book_title, bookKey, bookAuthor, bookCoverUrl, data.quote]);
-            console.log(`✨ [${bot.username}] Alıntı Paylaştı: ${data.book_title} — ${bookAuthor || 'Yazar bilinmiyor'}`);
+            if (bookKey) {
+                // AI Botlar kötü puan da verebilir, çoğunlukla 3-5
+                const rating = Math.random() < 0.2 ? Math.floor(Math.random() * 2) + 1 : Math.floor(Math.random() * 3) + 3;
+                const cleanKey = bookKey.replace('/works/', '');
+                db.run('INSERT OR REPLACE INTO book_ratings (user_id, book_key, rating) VALUES (?, ?, ?)', [bot.id, cleanKey, rating]);
+            }
+            console.log(`✨ [${bot.username}] Alıntı Paylaştı: ${data.book_title} — ${bookAuthor || 'Yazar bilinmiyor'} (Puan: ${bookKey ? 'Verildi' : 'Yok'})`);
         }
     } catch(e) {
         console.error('Alıntı botu JSON parse hatası:', e.message);
@@ -211,11 +217,12 @@ async function postNewTopic(bot) {
         const aiTopicData = JSON.parse(rawJson);
         
         const axios = require('axios');
-        let coverUrl = null, author = null, pages = null, releaseDate = null;
+        let coverUrl = null, author = null, pages = null, releaseDate = null, bookKey = null;
         try {
             const searchRes = await axios.get(`https://openlibrary.org/search.json?title=${encodeURIComponent(aiTopicData.book_reference)}&limit=5`);
             if(searchRes.data.docs && searchRes.data.docs.length > 0) {
                 const book = searchRes.data.docs.find(item => item.cover_i) || searchRes.data.docs[0];
+                bookKey = book.key;
                 coverUrl = book.cover_i ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg` : null;
                 author = book.author_name ? book.author_name.join(', ') : 'Bilinmeyen Yazar';
                 pages = book.number_of_pages_median || '-';
@@ -224,9 +231,16 @@ async function postNewTopic(bot) {
         } catch(e) {}
 
         const cat_id = Math.floor(Math.random() * 4) + 1;
-        db.run('INSERT INTO topics (category_id, user_id, title, content, book_reference_title, book_cover_url, book_author, book_pages, book_publish_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', 
-            [cat_id, bot.id, aiTopicData.title, aiTopicData.content, aiTopicData.book_reference, coverUrl, author, pages, releaseDate], function(err) {
-            if (!err) console.log(`✨ [${bot.username}] otonom olarak yeni bir konu neşretti.`);
+        db.run('INSERT INTO topics (category_id, user_id, title, content, book_reference_title, book_cover_url, book_author, book_pages, book_publish_date, book_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+            [cat_id, bot.id, aiTopicData.title, aiTopicData.content, aiTopicData.book_reference, coverUrl, author, pages, releaseDate, bookKey], function(err) {
+            if (!err) {
+                console.log(`✨ [${bot.username}] otonom olarak yeni bir konu neşretti.`);
+                if (bookKey) {
+                    const rating = Math.random() < 0.2 ? Math.floor(Math.random() * 2) + 1 : Math.floor(Math.random() * 3) + 3;
+                    const cleanKey = bookKey.replace('/works/', '');
+                    db.run('INSERT OR REPLACE INTO book_ratings (user_id, book_key, rating) VALUES (?, ?, ?)', [bot.id, cleanKey, rating]);
+                }
+            }
         });
     } catch(e) { console.log('Bot konu üretirken JSON hatası aldı.'); }
 }
