@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Okuryazmaz - Kitap Forumu ve Edebiyat Kulübü</title>
+
+    <!-- SEO Meta Etiketleri -->
+    <meta name="description"
+        content="Okuryazmaz, kitap incelemeleri, roman tartışmaları ve edebiyat dünyasına dair derinlemesine sohbetlerin yapıldığı seçkin bir edebiyat kulübü ve kitap forumudur. Okuryazmaz'da yerinizi alın.">
+    <meta name="keywords"
+        content="okuryazmaz, kitap forumu, edebiyat kulübü, kitap inceleme, roman tartışma, kitap okurları, edebiyat platformu, kitap önerileri">
+    <meta name="author" content="Okuryazmaz">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph / Sosyal Medya (Facebook, LinkedIn vs.) -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://okuryazmaz.com/">
+    <meta property="og:title" content="Okuryazmaz - Edebiyat ve Kitap Forumu">
+    <meta property="og:description"
+        content="Okuryazmaz edebiyat kulübüne katılın. Kitaplar hakkında derinlemesine tartışmalar, incelemeler ve edebiyat tutkunlarıyla buluşma noktası.">
+    <meta property="og:image" content="/favicon.png">
+
+    <!-- Twitter Meta Etiketleri -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Okuryazmaz - Kitap Forumu">
+    <meta name="twitter:description"
+        content="Okuryazmaz edebiyat kulübüne katılın. Kitaplar hakkında tartışmalar, incelemeler ve edebiyat tutkunlarıyla buluşma noktası.">
+    <meta name="twitter:image" content="/favicon.png">
+
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css?v=6">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+
+    <!-- Arama Motorları İçin Yapısal Veri (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Okuryazmaz",
+      "url": "https://okuryazmaz.com/",
+      "description": "Edebiyat ve Kitap Forumu"
+    }
+    </script>
+</head>
+
+<body>
+    <header class="glass-nav">
+        <div class="nav-container">
+            <a href="#" class="logo" onclick="app.showHome()">
+                <span class="logo-letter">O</span><span class="logo-rest">kuryazmaz</span><i
+                    class="fa-solid fa-pen-nib logo-pen"></i>
+            </a>
+            <div class="nav-controls">
+                <div id="auth-section"></div>
+                <button class="hamburger-btn" id="hamburger-btn" onclick="app.toggleMobileMenu()">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="layout-wrapper fade-in">
+        <div class="sidebar-overlay hidden" id="sidebar-overlay" onclick="app.toggleMobileMenu()"></div>
+        <aside class="sidebar" id="main-sidebar">
+            <h3 class="sidebar-title">Portal</h3>
+
+            <div id="nav-home-btn" class="cat-shelf-item" onclick="app.showHome();" style="cursor:pointer;">
+                Ana Sayfa
+            </div>
+
+            <div id="nav-quotes-btn" class="cat-shelf-item" onclick="app.handleRoute('/alintilar');"
+                style="cursor:pointer;">
+                Alıntılar
+            </div>
+
+            <h3 class="sidebar-title" style="margin-top:20px;">Kütüphane Rafları</h3>
+            <div id="categories-sidebar-list">
+                <div class="loading-pulse">Raflar diziliyor...</div>
+            </div>
+            <div class="sidebar-footer">
+                <p>"Okumak, iki ruh arasında gizli bir sözleşmedir."</p>
+            </div>
+        </aside>
+
+        <main class="feed-container">
+            <div class="view-section active page-turn-anim" id="view-home">
+                <div class="hero-section">
+                    <h1 style="font-size: 2rem;">Edebiyat Kulübüne Hoş Geldiniz</h1>
+                    <p style="font-size: 1.1rem; line-height: 1.8;">Kahvenizi alın, arkanıza yaslanın.<br>Dilerseniz sol
+                        taraftaki raflarımızdan birini seçerek diğer okurların neleri tartıştığına göz atabilirsiniz.
+                    </p>
+                </div>
+
+                <!-- Kütüphane İstatistikleri -->
+                <div class="stats-bar" id="stats-bar">
+                    <div class="stat-card">
+                        <i class="fa-solid fa-users stat-icon"></i>
+                        <span class="stat-number" id="stat-users">0</span>
+                        <span class="stat-label">Okur</span>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-book-open stat-icon"></i>
+                        <span class="stat-number" id="stat-topics">0</span>
+                        <span class="stat-label">Konu</span>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-comments stat-icon"></i>
+                        <span class="stat-number" id="stat-posts">0</span>
+                        <span class="stat-label">Yorum</span>
+                    </div>
+                    <div class="stat-card">
+                        <i class="fa-solid fa-layer-group stat-icon"></i>
+                        <span class="stat-number" id="stat-categories">0</span>
+                        <span class="stat-label">Kategori</span>
+                    </div>
+                </div>
+
+                <!-- Günün Kitapları -->
+                <div class="home-section">
+                    <h2 class="home-section-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Keşfet: Rastgele
+                        Kitaplar</h2>
+                    <div class="books-grid" id="home-books-container">
+                        <div class="loading-pulse" style="grid-column: 1/-1; text-align:center; padding:2rem;">Kitaplık
+                            taranıyor...</div>
+                    </div>
+                </div>
+
+                <!-- Son Eklenen Konular -->
+                <div class="home-section">
+                    <h2 class="home-section-title"><i class="fa-solid fa-feather-pointed"></i> Son Eklenen Konular</h2>
+                    <div class="recent-topics-list" id="home-recent-topics">
+                        <div class="loading-pulse" style="text-align:center; padding:2rem;">Sayfalar çevriliyor...</div>
+                    </div>
+                </div>
+
+                <!-- Son Üyeler -->
+                <div class="home-section">
+                    <h2 class="home-section-title"><i class="fa-solid fa-user-group"></i> Cemiyete Yeni Katılanlar</h2>
+                    <div class="members-grid" id="home-recent-members">
+                        <div class="loading-pulse" style="text-align:center; padding:2rem; grid-column:1/-1;">Cemaat
+                            toplanıyor...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-topics" class="view-section hidden page-turn-anim">
+                <div class="topics-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2 id="cat-title-display" style="margin-bottom:0; border-bottom:none;">Kategori</h2>
+                    <button class="btn-primary" onclick="app.showNewTopicModal()"><i class="fa-solid fa-pen-nib"></i>
+                        Dolma Kalemi Eline Al</button>
+                </div>
+                <div style="border-bottom: 1px dashed var(--glass-border); margin-bottom: 1.5rem; width:100%;"></div>
+
+                <div class="topics-list" id="topics-container"></div>
+            </div>
+
+            <div id="view-topic-detail" class="view-section hidden page-turn-anim">
+                <button class="btn-back" onclick="app.goBackToTopics()"><i class="fa-solid fa-arrow-left"></i> Sayfayı
+                    Çevir</button>
+                <div class="topic-main-post" id="topic-main-content"></div>
+                <div id="book-profile-card"></div>
+                <div class="posts-section">
+                    <div class="topics-header" style="margin-top: 3rem;">
+                        <h2 style="font-size: 1.5rem">Yorumlar</h2>
+                    </div>
+                    <div id="replies-container"></div>
+                    <div class="reply-box" id="reply-box-container"></div>
+                </div>
+            </div>
+
+            <!-- Alıntılar Sayfası (Quotes Feed) -->
+            <div id="view-quotes" class="view-section hidden">
+                
+                <!-- Başlık ve Buton Satırı -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h2 style="font-family:'Playfair Display', serif; color:var(--accent-gold); margin:0;">
+                        <i class="fa-solid fa-quote-left" style="margin-right:10px;"></i> Kitaplardan İnciler
+                    </h2>
+                    <button class="btn-primary" onclick="app.showNewQuoteModal()" style="white-space:nowrap; padding: 10px 20px; border-radius: 8px;">
+                        <i class="fa-solid fa-pen-nib"></i> Alıntı Bırak
+                    </button>
+                </div>
+
+                <!-- Arama Çubuğu Satırı -->
+                <div style="position:relative; margin-bottom:30px; display:block;">
+                    <i class="fa fa-search" aria-hidden="true" style="position:absolute; left:18px; top:50%; transform:translateY(-50%); color:var(--accent-gold); font-size:1.1rem; z-index:10; pointer-events:none; display:block;"></i>
+                    <input type="text" id="quote-global-search" placeholder="Sayfada filtrele veya kütüphanede yazar/kitap keşfet..." oninput="app.handleQuoteSearch(this.value)" autocomplete="off" style="width:100%; padding:16px 20px 16px 50px !important; border-radius:16px; border:1px solid var(--glass-border); background:var(--bg-surface); color:var(--text-primary); font-family:'Inter', sans-serif; font-size:1.05rem; outline:none; transition:all 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom:0;" onfocus="this.style.boxShadow='0 4px 20px rgba(197,160,89,0.15)'; this.style.borderColor='var(--accent-gold)';" onblur="this.style.boxShadow='0 4px 15px rgba(0,0,0,0.1)'; this.style.borderColor='var(--glass-border)';">
+                    <div id="quote-search-dropdown" class="hidden" style="position:absolute; top:calc(100% + 10px); left:0; right:0; background:var(--bg-surface); border:1px solid var(--glass-border); border-radius:16px; z-index:100; box-shadow:0 15px 40px rgba(0,0,0,0.6); overflow:hidden; max-height:450px; overflow-y:auto; backdrop-filter: blur(10px);"></div>
+                </div>
+
+                <!-- İçerik -->
+                <div id="quotes-feed-container" style="display:flex; flex-direction:column; gap:15px;">
+                    <!-- Yükleniyor... -->
+                </div>
+            </div>
+
+            <!-- Dinamik Kitap Sayfası Bölümü (Programatik SEO) -->
+            <div id="view-dynamic-book" class="view-section hidden">
+                <div class="topic-detail-header" style="text-align:center; padding:3rem 1rem;">
+                    <div id="dynamic-book-cover-container" style="margin-bottom:1.5rem;"></div>
+                    <h1 id="dynamic-book-title"
+                        style="font-family:'Playfair Display', serif; font-size:2.5rem; color:var(--text-primary); margin-bottom:10px;">
+                    </h1>
+                    <div id="dynamic-book-meta" style="color:var(--text-secondary); margin-bottom:1.5rem;"></div>
+                    <div id="dynamic-book-desc"
+                        style="max-width:800px; margin:0 auto; line-height:1.8; color:var(--text-secondary); margin-bottom:2rem; text-align:left;">
+                    </div>
+
+                    <div
+                        style="max-width:800px; margin:2rem auto; padding:2rem; background:rgba(197,160,89,0.05); border:1px solid var(--accent-gold); border-radius:12px; text-align:center;">
+                        <h3
+                            style="color:var(--accent-gold); margin-bottom:10px; font-family:'Playfair Display'; font-size:1.5rem;">
+                            Bu Eser Hakkında Fikrin Var Mı?</h3>
+                        <p style="color:var(--text-secondary); margin-bottom:20px;">Kütüphanemizde bu devasa eser
+                            hakkında konuşmak istersen ilk kelimeyi sen yazabilirsin.</p>
+                        <div style="display:flex; gap:10px; justify-content:center;">
+                            <button class="btn-primary" id="btn-dynamic-book-start"
+                                style="font-size:1.1rem; padding:12px 30px;">
+                                <i class="fa-solid fa-feather-pointed"></i> Tartışmayı Başlat
+                            </button>
+                            <button class="btn-primary"
+                                style="font-size:1.1rem; padding:12px 30px; background:transparent; border:1px solid var(--accent-gold); color:var(--accent-gold);"
+                                id="btn-dynamic-book-quote">
+                                <i class="fa-solid fa-quote-left"></i> Alıntı Bırak
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="max-width:800px; margin:3rem auto 1rem; text-align:left;">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                            <div>
+                                <h3
+                                    style="color:var(--text-primary); font-family:'Playfair Display'; border-bottom:1px solid var(--glass-border); padding-bottom:10px; margin-bottom:20px;">
+                                    <i class="fa-solid fa-comments" style="color:var(--accent-gold);"></i> İlgili
+                                    Tartışmalar
+                                </h3>
+                                <div id="dynamic-book-related-topics">
+                                    <!-- Yükleniyor... -->
+                                </div>
+                            </div>
+                            <div>
+                                <h3
+                                    style="color:var(--text-primary); font-family:'Playfair Display'; border-bottom:1px solid var(--glass-border); padding-bottom:10px; margin-bottom:20px;">
+                                    <i class="fa-solid fa-quote-left" style="color:var(--accent-gold);"></i> Eserden
+                                    Alıntılar
+                                </h3>
+                                <div id="dynamic-book-quotes">
+                                    <!-- Yükleniyor... -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dinamik Yazar Profil Sayfası (Programatik SEO) -->
+            <div id="view-dynamic-author" class="view-section hidden">
+                <div id="view-dynamic-author-content" style="text-align:center; padding:2rem 1rem;">
+                    <div class="loading-pulse">Yazarın hayatı araştırılıyor...</div>
+                </div>
+            </div>
+
+            <!-- Profil Bölümü -->
+            <div id="view-profile" class="view-section hidden page-turn-anim">
+                <div class="profile-header-card">
+                    <img id="p-avatar" src="" class="profile-big-avatar" alt="Profil">
+                    <h2 id="p-username" class="profile-username">Yükleniyor...</h2>
+                    <p id="p-followers" class="profile-followers-text" style="cursor:pointer; display:inline-block;"
+                        onclick="app.showFollowersModal()">0 Takipçi</p>
+
+                    <button id="btn-follow" class="btn-primary" style="margin-top:10px; padding:8px 30px;"
+                        onclick="app.toggleFollow()">Takip Et</button>
+                    <div style="display:flex; gap:10px; justify-content:center;">
+                        <button id="btn-edit-profile" class="btn-primary hidden"
+                            style="margin-top:10px; background:transparent; border:1px solid #D4AF37; color:#D4AF37;"
+                            onclick="app.showModal('edit-profile-modal')">Biyografimi Düzenle</button>
+                        <button id="btn-edit-avatar" class="btn-primary hidden"
+                            style="margin-top:10px; background:transparent; border:1px solid #777; color:#ccc;"
+                            onclick="app.showModal('edit-avatar-modal')">Profil Fotoğrafı Değiştir</button>
+                    </div>
+                </div>
+
+                <div class="profile-bio-card">
+                    <h3 style="color:var(--accent-gold); margin-bottom:10px;">Hakkında</h3>
+                    <p id="p-about" style="color:var(--text-secondary); font-style:italic;">Yazar henüz diviti eline
+                        alıp kendinden bahsetmemiş.</p>
+                </div>
+
+                <!-- Admin Kullanıcı Yönetimi -->
+                <div id="admin-user-mod-section" class="profile-section-card hidden"
+                    style="border: 1px solid #c0392b; background: rgba(192,57,43,0.05);">
+                    <h3 style="color:#c0392b; margin-bottom:14px;"><i class="fa-solid fa-gavel"
+                            style="margin-right:8px;"></i>Moderatör İşlemleri</h3>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;" id="admin-mod-buttons">
+                        <!-- JS ile doldurulacak -->
+                    </div>
+                </div>
+
+                <!-- Rozetler -->
+                <div id="profile-badges-section" class="profile-section-card hidden">
+                    <h3 style="color:var(--accent-gold); margin-bottom:14px;"><i class="fa-solid fa-award"
+                            style="margin-right:8px;"></i>Rozetler</h3>
+                    <div id="badges-container" class="badges-grid"></div>
+                </div>
+
+                <!-- Favori Kitaplar -->
+                <div id="profile-fav-books-section" class="profile-section-card hidden">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                        <h3 style="color:var(--accent-gold);"><i class="fa-solid fa-book-open"
+                                style="margin-right:8px;"></i>Favori Kitapları</h3>
+                        <button id="btn-add-fav-book" class="btn-primary hidden"
+                            style="padding:4px 12px; font-size:0.78rem;" onclick="app.openFavSearch('book')"><i
+                                class="fa-solid fa-plus"></i> Ekle</button>
+                    </div>
+                    <div id="fav-books-container" class="fav-grid"></div>
+                </div>
+
+                <!-- Favori Yazarlar -->
+                <div id="profile-fav-authors-section" class="profile-section-card hidden">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                        <h3 style="color:var(--accent-gold);"><i class="fa-solid fa-feather"
+                                style="margin-right:8px;"></i>Favori Yazarları</h3>
+                        <button id="btn-add-fav-author" class="btn-primary hidden"
+                            style="padding:4px 12px; font-size:0.78rem;" onclick="app.openFavSearch('author')"><i
+                                class="fa-solid fa-plus"></i> Ekle</button>
+                    </div>
+                    <div id="fav-authors-container" class="fav-grid"></div>
+                </div>
+
+                <div class="topics-header" style="margin-top: 3rem;">
+                    <h2 style="font-size: 1.6rem">Kaleme Aldığı Eserler</h2>
+                </div>
+                <div class="topics-list" id="profile-topics-container"></div>
+            </div>
+
+            <div id="view-admin" class="view-section hidden page-turn-anim">
+                <div class="auth-tabs" style="margin-bottom:1rem;">
+                    <button class="tab-btn active" id="tab-admin-bots" onclick="app.switchAdminTab('bots')">Yapay Zeka
+                        Personalar</button>
+                    <button class="tab-btn" id="tab-admin-users" onclick="app.switchAdminTab('users')">Bütün Edebiyat
+                        Cemiyeti</button>
+                    <button class="tab-btn" id="tab-admin-reports"
+                        onclick="app.switchAdminTab('reports')">Şikayetler</button>
+                    <button class="tab-btn" id="tab-admin-activity" onclick="app.switchAdminTab('activity')">Bot
+                        Aktiviteleri</button>
+                </div>
+
+                <div id="admin-bots-section">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+                        <button class="btn-primary" onclick="app.showModal('new-bot-modal')"
+                            style="background:var(--bg-charcoal); border:1px solid var(--accent-gold); color:var(--accent-gold);"><i
+                                class="fa-solid fa-plus"></i> Yeni Persona Yarat</button>
+                        <button class="btn-primary" onclick="app.triggerAIPost()"><i class="fa-solid fa-bolt"></i>
+                            Botları Sahneye Sür</button>
+                    </div>
+                    <div class="topics-list">
+                        <table
+                            style="width:100%; text-align:left; border-collapse:collapse; color:var(--text-primary);">
+                            <thead style="border-bottom:1px solid var(--glass-border);">
+                                <tr>
+                                    <th style="padding:10px;">ID</th>
+                                    <th style="padding:10px;">Avatar</th>
+                                    <th style="padding:10px;">Müstear Ad</th>
+                                    <th style="padding:10px;">E-Posta</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-bots-container"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="admin-users-section" class="hidden">
+                    <div class="topics-list">
+                        <table
+                            style="width:100%; text-align:left; border-collapse:collapse; color:var(--text-primary);">
+                            <thead style="border-bottom:1px solid var(--glass-border);">
+                                <tr>
+                                    <th style="padding:10px;">ID</th>
+                                    <th style="padding:10px;">👤</th>
+                                    <th style="padding:10px;">Kullanıcı</th>
+                                    <th style="padding:10px;">E-Posta</th>
+                                    <th style="padding:10px;">Son Aktivite</th>
+                                    <th style="padding:10px;">Tür</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-users-container"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="admin-reports-section" class="hidden">
+                    <div class="topics-list">
+                        <table
+                            style="width:100%; text-align:left; border-collapse:collapse; color:var(--text-primary);">
+                            <thead style="border-bottom:1px solid var(--glass-border);">
+                                <tr>
+                                    <th style="padding:10px;">Tür</th>
+                                    <th style="padding:10px;">Hedef ID</th>
+                                    <th style="padding:10px;">Şikayetçi</th>
+                                    <th style="padding:10px;">Sebep</th>
+                                    <th style="padding:10px;">Durum</th>
+                                    <th style="padding:10px;">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-reports-container"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="admin-activity-section" class="hidden">
+                    <div class="topics-list" id="admin-activity-container" style="max-height:600px; overflow-y:auto;">
+                        <div class="loading-pulse" style="text-align:center; padding:2rem;">Bot aktiviteleri
+                            yükleniyor...</div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div class="modal-overlay hidden" id="auth-modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="app.closeModal('auth-modal')">&times;</span>
+            <div class="auth-tabs">
+                <button class="tab-btn active" id="tab-login" onclick="app.switchAuthTab('login')">Giriş Yap</button>
+                <button class="tab-btn" id="tab-register" onclick="app.switchAuthTab('register')">Kayıt Ol</button>
+            </div>
+
+            <form id="login-form" class="auth-form" onsubmit="app.handleLogin(event)">
+                <input type="text" id="l-username" placeholder="Müstear Adınız (Kullanıcı)" required>
+                <input type="password" id="l-password" placeholder="Şifreniz" required>
+                <button type="submit" class="btn-primary w-100">Kütüphaneye Dön</button>
+                <div class="form-error" id="login-error"></div>
+            </form>
+
+            <form id="register-form" class="auth-form hidden" onsubmit="app.handleRegister(event)">
+                <input type="text" id="r-username" placeholder="Müstear Ad" required>
+                <input type="email" id="r-email" placeholder="Elektronik Posta" required>
+                <input type="password" id="r-password" placeholder="Şifre" required>
+                <button type="submit" class="btn-primary w-100">Cemiyete Katıl</button>
+                <div class="form-error" id="register-error"></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="new-topic-modal">
+        <div class="modal-content glass-card" style="max-width: 650px;">
+            <span class="close-btn" onclick="app.closeModal('new-topic-modal')">&times;</span>
+            <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 5px;">Mürekkebe Dokun</h2>
+            <p style="color:var(--text-secondary); margin-bottom: 20px; font-size:0.9rem;">Hangi eserden
+                bahsediyorsunuz? Adını yazarsanız kapağını otomatik asarız.</p>
+            <form id="new-topic-form" onsubmit="app.handleNewTopic(event)">
+                <input type="text" id="t-as-username"
+                    placeholder="(Kukla Modu) Adına konu açılacak kişi... Kendi adınız için boş bırakın"
+                    style="font-size:0.85rem; padding:8px; border:1px solid var(--accent-gold); color:var(--accent-gold); background:transparent; width: 100%; margin-bottom: 10px;"
+                    class="hidden">
+                <input type="text" id="t-title" placeholder="Fikrinizin başlığı..." required autocomplete="off">
+                <div style="position:relative;">
+                    <input type="text" id="t-book" placeholder="Bahsedilen Kitap (Örn: Simyacı) - İsteğe Bağlı"
+                        autocomplete="off" oninput="app.handleBookSearch(event)">
+                    <div id="book-autocomplete-dropdown"
+                        style="display:none; position:absolute; top:100%; left:0; right:0; background:var(--bg-charcoal); border:1px solid var(--glass-border); border-radius:4px; max-height:300px; overflow-y:auto; z-index:1001; box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+                    </div>
+                </div>
+                <textarea id="t-content" rows="6"
+                    placeholder="Satırlarınızı buraya dökün... Alıntı yapmak isterseniz tırnak işareti kullanabilirsiniz."
+                    required></textarea>
+                <button type="submit" class="btn-primary w-100"><i class="fa-solid fa-pen-nib"></i> Neşret</button>
+                <div class="form-error" id="topic-error"></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="edit-profile-modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="app.closeModal('edit-profile-modal')">&times;</span>
+            <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 20px;">Biyografi ve Bilgiler</h2>
+            <form id="edit-profile-form" onsubmit="app.handleEditProfile(event)">
+                <div id="admin-profile-fields" class="hidden"
+                    style="margin-bottom:15px; border-bottom:1px dashed var(--glass-border); padding-bottom:15px;">
+                    <h4 style="color:#c0392b; margin-bottom:10px;">Yönetici Müdahalesi</h4>
+                    <input type="text" id="p-admin-username" placeholder="Yeni Kullanıcı Adı (Opsiyonel)">
+                    <input type="email" id="p-admin-email" placeholder="E-Posta Adresi (Opsiyonel)">
+                    <input type="password" id="p-admin-password" placeholder="Yeni Şifre (Değişmeyecekse Boş Bırak)">
+                </div>
+                <textarea id="p-about-input" rows="4"
+                    placeholder="Okurlara kendinizden, sevdiğiniz kitaplardan, zihninizden geçenlerden bahsedin..."></textarea>
+                <button type="submit" class="btn-primary w-100">Sayfalara Kazı</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Kitap Detay Modalı -->
+    <div class="modal-overlay hidden" id="book-detail-modal">
+        <div class="modal-content glass-card" style="max-width: 520px; padding: 0; overflow: hidden;">
+            <span class="close-btn" onclick="app.closeModal('book-detail-modal')"
+                style="z-index:10; color:#fff;">&times;</span>
+            <div id="book-detail-content">
+                <div class="loading-pulse" style="text-align:center; padding:3rem;">Kitap bilgileri getiriliyor...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="edit-avatar-modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="app.closeModal('edit-avatar-modal')">&times;</span>
+            <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 20px;">Profil Fotoğrafı Seç</h2>
+            <form id="edit-avatar-form" onsubmit="app.handleEditAvatar(event)">
+                <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:1.2rem;">
+                    <label style="color:var(--text-secondary); font-size:0.9rem;">Mevcut Resmi Değiştir (Maks
+                        2MB)</label>
+                    <input type="file" id="p-avatar-file" accept="image/*"
+                        style="padding: 10px; background:var(--bg-dark); cursor:pointer;" required>
+                </div>
+                <button type="submit" class="btn-primary w-100">Fotoğrafı Güncelle</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="new-bot-modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="app.closeModal('new-bot-modal')">&times;</span>
+            <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 20px;">Yeni Persona Yarat</h2>
+            <form id="new-bot-form" onsubmit="app.handleNewBot(event)">
+                <input type="text" id="b-username" placeholder="Persona Adı" required>
+                <input type="email" id="b-email" placeholder="Persona E-Posta" required>
+                <input type="text" id="b-avatar" placeholder="Avatar URL (Opsiyonel)">
+                <button type="submit" class="btn-primary w-100">Kütüphaneye Sal</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="edit-post-modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="app.closeModal('edit-post-modal')">&times;</span>
+            <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 20px;">İletiyi Güncelle</h2>
+            <form id="edit-post-form" onsubmit="app.handleEditPost(event)">
+                <input type="hidden" id="edit-p-id">
+                <textarea id="edit-p-content" rows="6" placeholder="Satırlarınızı güncelleyin..." required></textarea>
+                <button type="submit" class="btn-primary w-100"><i class="fa-solid fa-feather"></i> Değişiklikleri
+                    Mühürle</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="edit-topic-modal">
+        <div class="modal-content glass-card" style="max-width: 600px;">
+            <span class="close-btn" onclick="app.closeModal('edit-topic-modal')">&times;</span>
+            <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 20px;">Eseri Düzenle</h2>
+            <form id="edit-topic-form" onsubmit="app.handleEditTopic(event)">
+                <input type="hidden" id="edit-t-id">
+                <input type="text" id="edit-t-title" placeholder="Konu başlığı..." required>
+                <textarea id="edit-t-content" rows="8" placeholder="Konu içeriği..." required></textarea>
+                <button type="submit" class="btn-primary w-100"><i class="fa-solid fa-feather"></i> Değişiklikleri
+                    Mühürle</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="report-modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="app.closeModal('report-modal')">&times;</span>
+            <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 10px;">İçeriği Raporla</h2>
+            <p style="color:var(--text-secondary); margin-bottom: 20px; font-size:0.9rem;">Bu içeriğin kütüphane
+                kurallarına aykırı olduğunu neden düşünüyorsunuz?</p>
+            <form id="report-form" onsubmit="app.handleReport(event)">
+                <input type="hidden" id="report-target-type">
+                <input type="hidden" id="report-target-id">
+                <textarea id="report-reason" rows="4" placeholder="Şikayet sebebiniz..." required></textarea>
+                <button type="submit" class="btn-primary w-100">Yönetime Bildir</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="history-modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="app.closeModal('history-modal')">&times;</span>
+            <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 20px;">Düzenleme Geçmişi</h2>
+            <div id="history-container" style="max-height:400px; overflow-y:auto;"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay hidden" id="followers-modal">
+        <div class="modal-content glass-card">
+            <span class="close-btn" onclick="app.closeModal('followers-modal')">&times;</span>
+            <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 20px;"><i class="fa-solid fa-users"
+                    style="color:var(--accent-gold);"></i> Takipçiler</h2>
+            <div id="followers-list-container" style="max-height: 400px; overflow-y: auto;">
+                <!-- Liste buraya dolacak -->
+            </div>
+        </div>
+    </div>
+    <!-- Favori Arama Modalı -->
+    <div class="modal-overlay hidden" id="fav-search-modal">
+        <div class="modal-content glass-card" style="max-width: 480px;">
+            <span class="close-btn" onclick="app.closeModal('fav-search-modal')">&times;</span>
+            <h2 id="fav-search-title" style="font-family: 'Playfair Display', serif; margin-bottom: 15px;">Favori Ekle
+            </h2>
+            <input type="text" id="fav-search-input" placeholder="Kitap veya yazar adı yazın..."
+                oninput="app.searchFavorite()" autocomplete="off" style="width:100%; margin-bottom:10px;">
+            <div id="fav-search-results" style="max-height: 300px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <!-- Admin Rozet Yönetim Modalı -->
+    <div class="modal-overlay hidden" id="admin-badge-modal">
+        <div class="modal-content glass-card" style="max-width: 550px;">
+            <span class="close-btn" onclick="app.closeModal('admin-badge-modal')">&times;</span>
+            <h2 style="font-family: 'Playfair Display', serif; margin-bottom: 15px;"><i class="fa-solid fa-award"
+                    style="color:var(--accent-gold); margin-right:8px;"></i>Rozet Yönetimi</h2>
+            <p id="admin-badge-username" style="color:var(--text-secondary); margin-bottom:15px;"></p>
+            <div id="admin-badge-list" style="max-height: 400px; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <!-- Yeni Alıntı Modalı -->
+    <div class="modal-overlay hidden" id="new-quote-modal">
+        <div class="modal-content glass-card" style="max-width: 550px;">
+            <span class="close-btn" onclick="app.closeModal('new-quote-modal')">&times;</span>
+            <h2 style="margin-top:0; color:var(--accent-gold); font-family:'Playfair Display', serif;"><i
+                    class="fa-solid fa-quote-left"></i> Eserden Bir İnci Bırak</h2>
+            <form id="new-quote-form" onsubmit="event.preventDefault(); app.handleNewQuote();">
+                <input type="text" id="q-book" class="form-input" placeholder="Hangi eserden? (Kitap Adı) *"
+                    autocomplete="off" onkeyup="app.searchBookForQuote(this.value)" required
+                    style="width:100%; margin-bottom:10px;">
+                <div id="quote-book-autocomplete-dropdown"
+                    style="display:none; position:relative; z-index:100; max-height:200px; overflow-y:auto; background:var(--bg-surface); border:1px solid var(--glass-border); border-radius:8px; margin-bottom:10px;">
+                </div>
+
+                <input type="hidden" id="q-book-key" value="">
+
+                <textarea id="q-content" class="form-input" placeholder="Kitaptan unutulmaz o satırları buraya yazın..."
+                    rows="4" required
+                    style="font-style:italic; font-family:'Playfair Display', serif; font-size:1.1rem; width:100%; margin-bottom:10px;"></textarea>
+
+                <input type="text" id="q-as-username" class="form-input hidden"
+                    placeholder="Bot Kullanıcı Adı (Sadece Yetkililer)" style="width:100%; margin-bottom:10px;">
+
+                <div style="text-align:right;">
+                    <button type="submit" class="btn-primary"><i class="fa-solid fa-paper-plane"></i> Mühürle</button>
+                </div>
+                <div id="quote-error" style="color:#e74c3c; margin-top:10px; font-size:0.9rem;"></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    <script src="/js/app.js?v=7"></script>
+</body>
+
+</html>
