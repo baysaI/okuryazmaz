@@ -57,6 +57,53 @@ app.all('/api/*', (req, res) => {
 app.locals.cachedPopularBooks = [];
 const axios = require('axios');
 
+// index.html'i başlangıçta bir kez oku ve bellekte tut
+const indexPath = path.join(__dirname, 'public', 'index.html');
+let cachedIndexHtml = fs.readFileSync(indexPath, 'utf8');
+if (process.env.NODE_ENV !== 'production') {
+    fs.watchFile(indexPath, { interval: 2000 }, () => {
+        cachedIndexHtml = fs.readFileSync(indexPath, 'utf8');
+        console.log('[DEV] index.html yeniden yüklendi.');
+    });
+}
+
+// XML entity encoding
+function escapeXml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+// Sitemap dosya cache
+const SITEMAP_CACHE_PATH = path.join(__dirname, 'database', 'sitemap_cache.json');
+const SITEMAP_CACHE_MAX_AGE = 24 * 60 * 60 * 1000; // 24 saat
+
+function loadSitemapCache() {
+    try {
+        if (fs.existsSync(SITEMAP_CACHE_PATH)) {
+            const data = JSON.parse(fs.readFileSync(SITEMAP_CACHE_PATH, 'utf8'));
+            if (Date.now() - data.timestamp < SITEMAP_CACHE_MAX_AGE) {
+                app.locals.cachedPopularBooks = data.books || [];
+                cachedPopularAuthors = data.authors || [];
+                console.log(`[SEO] Cache'den yüklendi: ${data.books.length} kitap, ${data.authors.length} yazar`);
+                return true;
+            }
+        }
+    } catch(e) { console.error('[SEO] Cache okuma hatası:', e.message); }
+    return false;
+}
+
+function saveSitemapCache() {
+    try {
+        const data = {
+            timestamp: Date.now(),
+            books: app.locals.cachedPopularBooks,
+            authors: cachedPopularAuthors
+        };
+        fs.writeFileSync(SITEMAP_CACHE_PATH, JSON.stringify(data));
+        console.log('[SEO] Cache dosyaya kaydedildi.');
+    } catch(e) { console.error('[SEO] Cache yazma hatası:', e.message); }
+}
+
 function slugify(text) {
     if (!text) return '';
     const trMap = { 'çÇ':'c', 'ğĞ':'g', 'şŞ':'s', 'üÜ':'u', 'ıİ':'i', 'öÖ':'o' };
@@ -117,7 +164,6 @@ async function fetchPopularBooksForSitemap() {
     }
     console.log(`[SEO] MÜKEMMEL! Türk okur kitlesine özel toplam ${app.locals.cachedPopularBooks.length} kitap sitemap için belleğe alındı.`);
 }
-fetchPopularBooksForSitemap(); // Sunucu başlarken arka planda çalışmaya başlar
 
 // SEO İçin Popüler Yazar Cache'i
 let cachedPopularAuthors = [];
@@ -146,66 +192,79 @@ async function fetchPopularAuthorsForSitemap() {
     }
     console.log(`[SEO] Toplam ${cachedPopularAuthors.length} yazar sitemap için belleğe alındı.`);
 }
-fetchPopularAuthorsForSitemap(); // Sunucu başlarken arka planda çalışmaya başlar
+
+// Sitemap verisi: Önce cache'den yükle, yoksa arka planda çek
+if (!loadSitemapCache()) {
+    (async () => {
+        await fetchPopularBooksForSitemap();
+        await fetchPopularAuthorsForSitemap();
+        saveSitemapCache();
+    })();
+} else {
+    console.log('[SEO] Sitemap cache güncel, OpenLibrary çağrısı atlandı. Sunucu hızlı başladı.');
+}
 
 // SPA Fallback: Tüm diğer yollar için index.html döndür (API ve özel yollar hariç)
-app.get('/sitemap.xml', (req, res) => {
+// Yardımcı: db.all'ı Promise olarak wrap et
+function dbAllAsync(query, params = []) {
+    return new Promise((resolve, reject) => {
+        db.all(query, params, (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows || []);
+        });
+    });
+}
+
+app.get('/sitemap.xml', async (req, res) => {
     res.type('application/xml');
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+    try {
+        let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url><loc>https://okuryazmaz.com/</loc><priority>1.0</priority></url>
     <url><loc>https://okuryazmaz.com/kategori/1-romanlar-ve-kurgu</loc><priority>0.8</priority></url>
     <url><loc>https://okuryazmaz.com/kategori/2-bilim-kurgu-ve-fantastik</loc><priority>0.8</priority></url>
 `;
 
-    // Tüm konuları sitemap'e ekle
-    db.all("SELECT id, title, updated_at FROM topics WHERE IFNULL(is_hidden, 0) = 0", [], (err, topics) => {
-        if (!err && topics) {
-            topics.forEach(t => {
-                const slug = slugify(t.title) ? '-' + slugify(t.title) : '';
-                const date = t.updated_at ? new Date(t.updated_at + 'Z').toISOString() : new Date().toISOString();
-                xml += `    <url><loc>https://okuryazmaz.com/konu/${t.id}${slug}</loc><lastmod>${date}</lastmod><priority>0.9</priority></url>\n`;
-            });
-        }
-        
-        // Veritabanındaki benzersiz kitaplar
-        db.all("SELECT DISTINCT book_key, book_reference_title FROM topics WHERE book_key IS NOT NULL", [], (err, dbBooks) => {
-            let combinedBooks = [...app.locals.cachedPopularBooks];
-            
-            if (!err && dbBooks) {
-                dbBooks.forEach(b => {
-                    const key = b.book_key.replace('/works/', '');
-                    // Eğer veritabanındaki kitap cachedPopularBooks'da yoksa ekle
-                    if (!combinedBooks.find(cb => cb.key === key)) {
-                        combinedBooks.push({ key, slug: slugify(b.book_reference_title) });
-                    }
-                });
-            }
-            
-            combinedBooks.forEach(book => {
-                xml += `    <url><loc>https://okuryazmaz.com/kitap/${book.key}-${book.slug}</loc><priority>0.7</priority></url>\n`;
-            });
-            
-            // Veritabanındaki benzersiz alıntı yazarları (Yazar sayfaları için)
-            db.all("SELECT DISTINCT book_author FROM quotes WHERE book_author IS NOT NULL AND book_author != ''", [], (err, authors) => {
-                if (!err && authors) {
-                    authors.forEach(a => {
-                        const authorSlug = slugify(a.book_author);
-                        xml += `    <url><loc>https://okuryazmaz.com/alintilar/yazar/${authorSlug}</loc><priority>0.6</priority></url>\n`;
-                    });
-                }
-                
-                // Popüler Yazarlar
-                cachedPopularAuthors.forEach(author => {
-                    const cleanKey = author.key.replace('/authors/', '');
-                    xml += `    <url><loc>https://okuryazmaz.com/yazar/${cleanKey}-${author.slug}</loc><priority>0.8</priority></url>\n`;
-                });
-                
-                xml += `</urlset>`;
-                res.send(xml);
-            });
+        // Tüm konuları sitemap'e ekle
+        const topics = await dbAllAsync("SELECT id, title, updated_at FROM topics WHERE IFNULL(is_hidden, 0) = 0");
+        topics.forEach(t => {
+            const slug = slugify(t.title) ? '-' + slugify(t.title) : '';
+            const date = t.updated_at ? new Date(t.updated_at + 'Z').toISOString() : new Date().toISOString();
+            xml += `    <url><loc>https://okuryazmaz.com/konu/${t.id}${slug}</loc><lastmod>${date}</lastmod><priority>0.9</priority></url>\n`;
         });
-    });
+
+        // Veritabanındaki + cache'deki benzersiz kitaplar
+        const dbBooks = await dbAllAsync("SELECT DISTINCT book_key, book_reference_title FROM topics WHERE book_key IS NOT NULL");
+        let combinedBooks = [...app.locals.cachedPopularBooks];
+        dbBooks.forEach(b => {
+            const key = b.book_key.replace('/works/', '');
+            if (!combinedBooks.find(cb => cb.key === key)) {
+                combinedBooks.push({ key, slug: slugify(b.book_reference_title) });
+            }
+        });
+        combinedBooks.forEach(book => {
+            xml += `    <url><loc>https://okuryazmaz.com/kitap/${escapeXml(book.key)}-${escapeXml(book.slug)}</loc><priority>0.7</priority></url>\n`;
+        });
+
+        // Veritabanındaki benzersiz alıntı yazarları
+        const authors = await dbAllAsync("SELECT DISTINCT book_author FROM quotes WHERE book_author IS NOT NULL AND book_author != ''");
+        authors.forEach(a => {
+            const authorSlug = slugify(a.book_author);
+            xml += `    <url><loc>https://okuryazmaz.com/alintilar/yazar/${escapeXml(authorSlug)}</loc><priority>0.6</priority></url>\n`;
+        });
+
+        // Popüler Yazarlar
+        cachedPopularAuthors.forEach(author => {
+            const cleanKey = author.key.replace('/authors/', '');
+            xml += `    <url><loc>https://okuryazmaz.com/yazar/${escapeXml(cleanKey)}-${escapeXml(author.slug)}</loc><priority>0.8</priority></url>\n`;
+        });
+
+        xml += `</urlset>`;
+        res.send(xml);
+    } catch(e) {
+        console.error('[SEO] Sitemap oluşturma hatası:', e.message);
+        res.status(500).send('Sitemap oluşturulurken hata oluştu.');
+    }
 });
 
 app.get('/robots.txt', (req, res) => {
@@ -234,6 +293,12 @@ function injectMetaTags(html, meta) {
     }
     if (meta.url) {
         newHtml = newHtml.replace(/<meta property="og:url" content=".*?">/, `<meta property="og:url" content="${meta.url}">`);
+        // Dinamik canonical etiketi enjekte et
+        if (newHtml.includes('rel="canonical"')) {
+            newHtml = newHtml.replace(/<link rel="canonical" href=".*?">/, `<link rel="canonical" href="${meta.url}">`);
+        } else {
+            newHtml = newHtml.replace('</head>', `    <link rel="canonical" href="${meta.url}">\n</head>`);
+        }
     }
     if (meta.schema) {
         const schemaString = JSON.stringify(meta.schema).replace(/</g, '\\u003c');
@@ -243,8 +308,7 @@ function injectMetaTags(html, meta) {
 }
 
 app.get('*', async (req, res) => {
-    const indexPath = path.join(__dirname, 'public', 'index.html');
-    let html = fs.readFileSync(indexPath, 'utf8');
+    let html = cachedIndexHtml;
     let meta = { url: `https://okuryazmaz.com${req.originalUrl}` };
 
     if (req.path === '/alintilar') {

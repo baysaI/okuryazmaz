@@ -50,6 +50,23 @@ function optionalAuth(req, res, next) {
     }
 }
 
+// Basit view rate-limit (IP/user başına konu başına 1 dakikada max 1 artış)
+const viewCooldowns = new Map();
+function canIncrementView(topicId, identifier) {
+    const key = `${topicId}:${identifier}`;
+    const now = Date.now();
+    const last = viewCooldowns.get(key);
+    if (last && now - last < 60000) return false;
+    viewCooldowns.set(key, now);
+    // Bellek temizliği: 10k girişi aşarsa eski entry'leri temizle
+    if (viewCooldowns.size > 10000) {
+        for (const [k, v] of viewCooldowns) {
+            if (now - v > 120000) viewCooldowns.delete(k);
+        }
+    }
+    return true;
+}
+
 router.get('/categories', (req, res) => {
     db.all('SELECT * FROM categories', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -61,11 +78,54 @@ router.get('/random-books', (req, res) => {
     const pool = req.app.locals.cachedPopularBooks || [];
     if (pool.length === 0) return res.json([]);
     
-    // Pick 6 random books
-    const shuffled = [...pool].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, 6);
+    // Ana sayfada yüksek kaliteli, kapaklı ve prestijli kitapların görünmesi için filtreleme yapıyoruz.
+    // (Böylece SEO için arka planda duran devasa sitemap arşivi bozulmaz, fakat ana sayfada sadece en seçkin eserler listelenir)
+    const filteredPool = pool.filter(b => {
+        // 1. Mutlaka kapak resmi olmalı (Uçsuz bucaksız boş kapak ikonlarını yok eder)
+        if (!b.cover_i) return false;
+        
+        // 2. Başlık sadece Latin/Türkçe alfabe karakterleri içermeli (Rusça, Korece, Yunanca alakasız çevirileri eler)
+        const isLatin = /^[A-Za-z0-9\s.,'’\"!\?\-\(\):;üÜöÖıİğĞşŞçÇâÂîÎûÛ]+$/.test(b.title);
+        if (!isLatin) return false;
+        
+        // 3. Çok kısa, anlamsız veya mevzuat/bülten gibi veri çöplerini eler
+        if (b.title.trim().length < 3) return false;
+        if (/^\d+$/.test(b.title)) return false; 
+        if (/bulletin|teblig|dergi|kanun|yönetmelik|mevzuat|gazete/i.test(b.title)) return false;
+        
+        // 4. Bilinmeyen veya eksik yazarlı kitapları eler
+        if (!b.author_name || b.author_name === 'Bilinmeyen Yazar') return false;
+        
+        // 5. Sadece Türk ve Dünya edebiyatının en seçkin, popüler ve bilinen yazarlarını hedefler
+        const popularAuthors = [
+            'Sabahattin Ali', 'Orhan Pamuk', 'Oğuz Atay', 'Yaşar Kemal', 'Ahmet Hamdi Tanpınar',
+            'Fyodor Dostoevsky', 'Franz Kafka', 'Lev Tolstoy', 'George Orwell', 'Stefan Zweig',
+            'Zülfü Livaneli', 'Halid Ziya Uşaklıgil', 'Peyami Safa', 'Reşat Nuri Güntekin',
+            'Victor Hugo', 'Albert Camus', 'Jean-Paul Sartre', 'Jane Austen', 'Virginia Woolf',
+            'J. K. Rowling', 'J.R.R. Tolkien', 'Antoine de Saint-Exupéry', 'Gabriel García Márquez',
+            'Agatha Christie', 'Stephen King', 'Dan Brown', 'Jules Verne', 'Aldous Huxley',
+            'George R. R. Martin', 'Stephen Hawking', 'Yuval Noah Harari', 'Haruki Murakami',
+            'Ursula K. Le Guin', 'John Steinbeck', 'Charles Dickens', 'Arthur Conan Doyle',
+            'William Shakespeare', 'Isaac Asimov', 'Friedrich Nietzsche', 'Sigmund Freud',
+            'Oscar Wilde', 'Herman Melville', 'Edgar Allan Poe', 'Paulo Coelho', 'Mark Twain',
+            'Ernest Hemingway', 'J.K. Rowling', 'Leo Tolstoy'
+        ];
+        
+        const isPopularAuthor = popularAuthors.some(author => 
+            b.author_name.toLowerCase().includes(author.toLowerCase())
+        );
+        
+        return isPopularAuthor;
+    });
     
-    // Format to match frontend expectations
+    // Güvenlik Duvarı (Fallback): Eğer filtreleme çok agresif olursa ve havuzda 12'den az kitap kalırsa kapaklı olanlardan devam et
+    const finalPool = filteredPool.length >= 12 ? filteredPool : pool.filter(b => b.cover_i);
+    
+    // Rastgele 12 kitap seç
+    const shuffled = [...finalPool].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, 12);
+    
+    // Arayüzün beklediği formata dönüştür
     const formatted = selected.map(b => ({
         key: '/works/' + b.key,
         title: b.title,
@@ -157,7 +217,11 @@ router.post('/topics', requireAuth, requireWriteAccess, async (req, res) => {
 router.get('/topics/:id', optionalAuth, (req, res) => {
     const topicId = req.params.id;
     
-    db.run('UPDATE topics SET views = views + 1 WHERE id = ?', [topicId]);
+    // View'u yalnızca gerçek benzersiz ziyaretlerde artır (1 dk cooldown)
+    const identifier = req.user?.id || req.ip || req.headers['x-forwarded-for'] || 'anon';
+    if (canIncrementView(topicId, identifier)) {
+        db.run('UPDATE topics SET views = views + 1 WHERE id = ?', [topicId]);
+    }
 
     db.get('SELECT topics.*, users.username, users.avatar_url FROM topics LEFT JOIN users ON topics.user_id = users.id WHERE topics.id = ?', [topicId], (err, topic) => {
         if (err) return res.status(500).json({ error: err.message });
@@ -282,19 +346,14 @@ router.get('/recent-topics', (req, res) => {
 
 // Kütüphane istatistikleri (Ana sayfa için)
 router.get('/stats', (req, res) => {
-    const stats = {};
-    db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
-        stats.users = row ? row.count : 0;
-        db.get('SELECT COUNT(*) as count FROM topics', (err, row) => {
-            stats.topics = row ? row.count : 0;
-            db.get('SELECT COUNT(*) as count FROM posts', (err, row) => {
-                stats.posts = row ? row.count : 0;
-                db.get('SELECT COUNT(*) as count FROM categories', (err, row) => {
-                    stats.categories = row ? row.count : 0;
-                    res.json(stats);
-                });
-            });
-        });
+    db.get(`SELECT
+        (SELECT COUNT(*) FROM users) as users,
+        (SELECT COUNT(*) FROM topics) as topics,
+        (SELECT COUNT(*) FROM posts) as posts,
+        (SELECT COUNT(*) FROM categories) as categories
+    `, (err, stats) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(stats);
     });
 });
 
@@ -502,24 +561,7 @@ router.get('/quotes/by-author/:author', (req, res) => {
     });
 });
 
-// Kitaba Göre Alıntılar
-router.get('/books/:key/quotes', (req, res) => {
-    const bookKey = req.params.key;
-    const currentUserId = req.query.uid || 0;
-    const query = `
-        SELECT quotes.*, users.username, users.avatar_url,
-        (SELECT COUNT(*) FROM quote_likes WHERE quote_likes.quote_id = quotes.id AND quote_likes.user_id = ?) as is_liked
-        FROM quotes
-        LEFT JOIN users ON quotes.user_id = users.id
-        WHERE quotes.book_key LIKE ?
-        ORDER BY quotes.likes_count DESC, quotes.created_at DESC LIMIT 50
-    `;
-    // book_key formatı /works/OL12345W veya OL12345W olabilir, o yüzden LIKE ile arıyoruz
-    db.all(query, [currentUserId, `%${bookKey}%`], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
-});
+// [KALDIRILDI] Duplicate route — GET /books/:key/quotes zaten satır 433'te tanımlı.
 
 // Benzersiz yazar listesi (sitemap ve filtre için)
 router.get('/quotes/authors', (req, res) => {

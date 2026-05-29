@@ -245,6 +245,18 @@ function initDb() {
                 insert.finalize();
             }
         });
+
+        // Performans İndeksleri
+        db.run('CREATE INDEX IF NOT EXISTS idx_topics_category_created ON topics(category_id, created_at DESC)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_posts_topic_created ON posts(topic_id, created_at ASC)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read, created_at DESC)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_quotes_book_key ON quotes(book_key)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_quotes_author ON quotes(book_author)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_ratings_book_key ON book_ratings(book_key)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_followers_following ON followers(following_id)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_users_is_ai ON users(is_ai)');
+        db.run('CREATE INDEX IF NOT EXISTS idx_topics_book_key ON topics(book_key)');
+        console.log('📊 Veritabanı indeksleri oluşturuldu/doğrulandı.');
     });
 }
 

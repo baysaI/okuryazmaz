@@ -19,6 +19,12 @@ const app = {
         app.renderAuthSection();
         await app.loadCategories();
 
+        // Premium arayüz animasyonlarını başlat
+        app.initCinematicIntro();
+        app.initScrollReveal();
+        app.initLibraryDust();
+        app.init3DHeroParallax();
+
         window.addEventListener('popstate', (e) => {
             app.handleRoute(window.location.pathname, false);
         });
@@ -156,14 +162,318 @@ const app = {
         }
     },
 
-    hideAllViews: () => {
+    hideAllViews: (showElementId = null) => {
         document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+        if (showElementId) {
+            const el = document.getElementById(showElementId);
+            if (el) {
+                el.classList.remove('hidden');
+                app.triggerPageTransition(el);
+                setTimeout(() => app.checkScrollReveal(), 50);
+            }
+        }
     },
+    
+    triggerPageTransition: (el) => {
+        if (!el) return;
+        
+        // Content dissolve effect
+        el.classList.add('page-dissolve-active');
+        
+        // Premium golden glare sweep on main container
+        const feed = document.querySelector('.feed-container');
+        if (feed) {
+            feed.classList.add('page-sweep-active');
+        }
+        
+        setTimeout(() => {
+            el.classList.remove('page-dissolve-active');
+            if (feed) {
+                feed.classList.remove('page-sweep-active');
+            }
+        }, 800);
+    },
+
+    initScrollReveal: () => {
+        if (typeof IntersectionObserver === 'undefined') return;
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('revealed');
+                }
+            });
+        }, { threshold: 0.05, rootMargin: '0px 0px -40px 0px' });
+
+        app._scrollObserver = observer;
+        app.checkScrollReveal();
+    },
+
+    checkScrollReveal: () => {
+        if (!app._scrollObserver) return;
+        document.querySelectorAll('.reveal-element').forEach(el => {
+            app._scrollObserver.observe(el);
+        });
+    },
+
+    initLibraryDust: () => {
+        const canvas = document.createElement('canvas');
+        canvas.id = 'library-dust-canvas';
+        canvas.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0;';
+        document.body.appendChild(canvas);
+
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        const particles = [];
+        const maxParticles = 45;
+
+        class Particle {
+            constructor(isMouseSpark = false, x = 0, y = 0) {
+                this.isMouseSpark = isMouseSpark;
+                this.x = isMouseSpark ? x : Math.random() * width;
+                this.y = isMouseSpark ? y : Math.random() * height;
+                this.size = isMouseSpark ? Math.random() * 2 + 1 : Math.random() * 2.5 + 0.8;
+                this.speedX = isMouseSpark ? (Math.random() - 0.5) * 1.5 : (Math.random() - 0.5) * 0.3;
+                this.speedY = isMouseSpark ? -Math.random() * 1.2 - 0.4 : -Math.random() * 0.6 - 0.15;
+                this.opacity = isMouseSpark ? 1.0 : Math.random() * 0.45 + 0.05;
+                this.fadeSpeed = isMouseSpark ? Math.random() * 0.02 + 0.01 : 0;
+                this.color = `rgba(${197 + Math.floor(Math.random() * 30)}, ${160 + Math.floor(Math.random() * 30)}, 89, `;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                if (!this.isMouseSpark) {
+                    this.speedX += Math.sin(this.y * 0.01) * 0.003;
+                }
+
+                if (this.isMouseSpark) {
+                    this.opacity -= this.fadeSpeed;
+                } else {
+                    if (this.y < -10 || this.x < -10 || this.x > width + 10) {
+                        this.y = height + 10;
+                        this.x = Math.random() * width;
+                        this.speedY = -Math.random() * 0.6 - 0.15;
+                        this.opacity = Math.random() * 0.45 + 0.05;
+                    }
+                }
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color + this.opacity + ')';
+                ctx.fill();
+            }
+        }
+
+        // Ambient particles
+        for (let i = 0; i < maxParticles; i++) {
+            particles.push(new Particle(false));
+            particles[i].y = Math.random() * height; // distribute initially
+        }
+
+        // Mouse sparks
+        let lastMove = 0;
+        window.addEventListener('mousemove', (e) => {
+            const now = Date.now();
+            if (now - lastMove < 35) return;
+            lastMove = now;
+            particles.push(new Particle(true, e.clientX, e.clientY));
+        });
+
+        // Touch support
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 0) return;
+            const now = Date.now();
+            if (now - lastMove < 35) return;
+            lastMove = now;
+            particles.push(new Particle(true, e.touches[0].clientX, e.touches[0].clientY));
+        });
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            if (particles.length > 200) {
+                let countToRemove = particles.length - 200;
+                for (let i = 0; i < particles.length && countToRemove > 0; i++) {
+                    if (particles[i].isMouseSpark) {
+                        particles.splice(i, 1);
+                        i--;
+                        countToRemove--;
+                    }
+                }
+            }
+
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                p.update();
+
+                if (p.isMouseSpark && p.opacity <= 0) {
+                    particles.splice(i, 1);
+                    i--;
+                } else {
+                    p.draw();
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+    },
+
+    init3DHeroParallax: () => {
+        const hero = document.getElementById('interactive-3d-hero');
+        const scene = document.getElementById('parallax-scene');
+        if (!hero || !scene) return;
+
+        const handleParallax = (clientX, clientY) => {
+            const rect = hero.getBoundingClientRect();
+            const x = clientX - rect.left - rect.width / 2;
+            const y = clientY - rect.top - rect.height / 2;
+
+            const layerBg = scene.querySelector('.layer-bg');
+            const layerMid = scene.querySelector('.layer-mid');
+            const layerFg = scene.querySelector('.layer-fg');
+
+            // Subtle parallax window shift (no heavy rotating!)
+            if (layerBg) layerBg.style.transform = `translate3d(${-x * 0.05}px, ${-y * 0.05}px, -100px) scale(1.3)`;
+            if (layerMid) layerMid.style.transform = `translate3d(${-x * 0.02}px, ${-y * 0.02}px, -50px) scale(1.15)`;
+            if (layerFg) layerFg.style.transform = `translate3d(${x * 0.02}px, ${y * 0.02}px, 30px) scale(0.92)`;
+        };
+
+        hero.addEventListener('mousemove', (e) => {
+            handleParallax(e.clientX, e.clientY);
+        });
+
+        hero.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 0) return;
+            handleParallax(e.touches[0].clientX, e.touches[0].clientY);
+        });
+
+        const resetParallax = () => {
+            const layerBg = scene.querySelector('.layer-bg');
+            const layerMid = scene.querySelector('.layer-mid');
+            const layerFg = scene.querySelector('.layer-fg');
+
+            if (layerBg) {
+                layerBg.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                layerBg.style.transform = 'translate3d(0, 0, -100px) scale(1.3)';
+            }
+            if (layerMid) {
+                layerMid.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                layerMid.style.transform = 'translate3d(0, 0, -50px) scale(1.15)';
+            }
+            if (layerFg) {
+                layerFg.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1)';
+                layerFg.style.transform = 'translate3d(0, 0, 30px) scale(0.92)';
+            }
+
+            setTimeout(() => {
+                if (layerBg) layerBg.style.transition = 'none';
+                if (layerMid) layerMid.style.transition = 'none';
+                if (layerFg) layerFg.style.transition = 'none';
+            }, 600);
+        };
+
+        hero.addEventListener('mouseleave', resetParallax);
+        hero.addEventListener('touchend', resetParallax);
+    },
+
+    initCinematicIntro: () => {
+        // DEV TESTING ENABLED: Temporarily commented out sessionStorage check so you can test it on every refresh!
+        /*
+        if (sessionStorage.getItem('okuryazmaz_intro_seen')) {
+            const intro = document.getElementById('cinematic-intro');
+            if (intro) intro.remove();
+            return;
+        }
+        */
+
+        const intro = document.getElementById('cinematic-intro');
+        if (!intro) return;
+
+        const pagesContainer = intro.querySelector('.intro-pages');
+        if (!pagesContainer) return;
+
+        const quotes = [
+            { text: "Beni hemen anla, çünkü kütüphaneler tozlanıyor.", author: "Oğuz Atay" },
+            { text: "Kimi tutkuyla sever, kimi sessizce... Ama herkes kendince okur.", author: "Sabahattin Ali" },
+            { text: "Ne içindeyim zamanın, ne de büsbütün dışında...", author: "Ahmet Hamdi Tanpınar" }
+        ];
+
+        let html = '';
+        quotes.forEach((q, idx) => {
+            html += `
+                <div class="intro-page intro-page-quote" style="z-index: ${5 - idx};">
+                    <div class="intro-quote-text">${q.text}</div>
+                    <div class="intro-quote-author">— ${q.author}</div>
+                </div>
+            `;
+        });
+        
+        html += `
+            <div class="intro-page intro-page-final" style="z-index: 1;">
+                <div class="intro-final-emblem">
+                    <div class="intro-final-logo" style="display:flex; align-items:center; justify-content:center; gap:0; font-family:'Playfair Display', serif; font-weight:700; position:relative; margin-bottom: 10px;">
+                        <span style="color:#C5A059; font-size:4.8rem; line-height:1; margin-right:-1px;">O</span>
+                        <span style="color:#111111; font-size:4.0rem; line-height:1; position:relative; top:2px;">kuryazmaz</span>
+                        <i class="fa-solid fa-pen-nib" style="color:#C5A059; font-size:1.6rem; transform: rotate(25deg); margin-left:6px; position:relative; top:-25px;"></i>
+                    </div>
+                    <div class="intro-final-text">Seçkin Kitap Topluluğu</div>
+                </div>
+            </div>
+        `;
+
+        pagesContainer.innerHTML = html;
+
+        const book = intro.querySelector('.intro-book-3d');
+        const pages = intro.querySelectorAll('.intro-page');
+
+        setTimeout(() => {
+            if (book) book.classList.add('open');
+
+            let delay = 600;
+
+            pages.forEach((page, index) => {
+                setTimeout(() => {
+                    page.style.opacity = '1';
+                    const txt = page.querySelector('.intro-quote-text');
+                    const auth = page.querySelector('.intro-quote-author');
+                    if (txt) txt.classList.add('visible');
+                    if (auth) auth.classList.add('visible');
+                }, delay);
+
+                if (index < pages.length - 1) {
+                    delay += 2000;
+                    setTimeout(() => {
+                        page.classList.add('flip');
+                    }, delay);
+                    delay += 300;
+                } else {
+                    delay += 1800;
+                    setTimeout(() => {
+                        intro.classList.add('zoom-out');
+                        sessionStorage.setItem('okuryazmaz_intro_seen', 'true');
+                        setTimeout(() => {
+                            intro.remove();
+                        }, 1400);
+                    }, delay);
+                }
+            });
+
+        }, 800);
+    },
+
     showHome: () => { app.handleRoute('/'); },
     _showHomeInternal: () => {
-        app.hideAllViews();
-        const hv = document.getElementById('view-home');
-        if (hv) hv.classList.remove('hidden');
+        app.hideAllViews('view-home');
         document.querySelectorAll('.cat-shelf-item').forEach(c => c.classList.remove('active-cat'));
         const homeBtn = document.getElementById('nav-home-btn');
         if (homeBtn) homeBtn.classList.add('active-cat');
@@ -176,7 +486,7 @@ const app = {
     },
     _showTopicsInternal: (categoryId) => {
         app.state.currentCategoryId = categoryId;
-        app.hideAllViews();
+        app.hideAllViews('view-topics');
         const sidebar = document.getElementById('main-sidebar');
         const overlay = document.getElementById('sidebar-overlay');
         if (sidebar) sidebar.classList.remove('mobile-open');
@@ -185,8 +495,6 @@ const app = {
         document.querySelectorAll('.cat-shelf-item').forEach(c => c.classList.remove('active-cat'));
         const clk = document.getElementById(`cat-item-${categoryId}`);
         if (clk) clk.classList.add('active-cat');
-
-        document.getElementById('view-topics').classList.remove('hidden');
 
         const cat = app.state.categories.find(c => c.id == categoryId);
         const categoryName = cat ? cat.title : 'Kategori';
@@ -347,8 +655,7 @@ const app = {
     },
     async _loadTopicDetailInternal(topicId) {
         app.state.currentTopicId = topicId;
-        app.hideAllViews();
-        document.getElementById('view-topic-detail').classList.remove('hidden');
+        app.hideAllViews('view-topic-detail');
         document.getElementById('topic-main-content').innerHTML = '<div class="loading-pulse" style="text-align:center; padding:3rem;">Satırlar okunuyor...</div>';
         document.getElementById('book-profile-card').innerHTML = "";
 
@@ -437,8 +744,7 @@ const app = {
     },
 
     async _loadDynamicBookInternal(bookKey) {
-        app.hideAllViews();
-        document.getElementById('view-dynamic-book').classList.remove('hidden');
+        app.hideAllViews('view-dynamic-book');
 
         document.getElementById('dynamic-book-cover-container').innerHTML = '<div class="loading-pulse" style="text-align:center; padding:1rem;">Kütüphane arşivleri aranıyor...</div>';
         document.getElementById('dynamic-book-title').innerHTML = '';
@@ -614,8 +920,7 @@ const app = {
 
     showProfile(username) { app.handleRoute(`/profil/${encodeURIComponent(username)}`); },
     async _showProfileInternal(username) {
-        app.hideAllViews();
-        document.getElementById('view-profile').classList.remove('hidden');
+        app.hideAllViews('view-profile');
 
         try {
             const data = await app.apiCall(`/profile/${username}`);
@@ -1089,8 +1394,7 @@ const app = {
     },
 
     _showAdminPanelInternal() {
-        app.hideAllViews();
-        document.getElementById('view-admin').classList.remove('hidden');
+        app.hideAllViews('view-admin');
         app.switchAdminTab('bots');
     },
 
@@ -1310,7 +1614,10 @@ const app = {
             const books = res || [];
 
             if (books.length > 0) {
-                container.innerHTML = books.slice(0, 6).map(book => {
+                // Mobilde ve tablette (<=1024px) 6 kitap (2 veya 3 sütuna tam bölünür),
+                // PC ekranlarında ise 3'lü ya da 4'lü sütunların hiçbirinde boşluk kalmaması için 12 kitap gösterilir.
+                const limit = window.innerWidth <= 1024 ? 6 : 12;
+                container.innerHTML = books.slice(0, limit).map(book => {
                     const coverId = book.cover_id;
                     const coverHtml = coverId
                         ? `<img src="https://covers.openlibrary.org/b/id/${coverId}-M.jpg" class="book-card-cover" alt="kitap kapağı" loading="lazy">`
@@ -1318,7 +1625,9 @@ const app = {
                     const authors = book.authors ? book.authors.map(a => a.name).join(', ') : '';
                     return `
                         <div class="book-card" data-bookkey="${book.key}" data-coverid="${coverId || ''}" title="${authors}">
-                            ${coverHtml}
+                            <div class="book-card-cover-wrapper">
+                                ${coverHtml}
+                            </div>
                             <div class="book-card-body">
                                 <div class="book-card-title">${book.title}</div>
                                 <div class="book-card-author">${authors}</div>
@@ -1795,9 +2104,7 @@ const app = {
     // ==========================================
 
     showQuotes() {
-        app.hideAllViews();
-        const viewQuotes = document.getElementById('view-quotes');
-        if (viewQuotes) viewQuotes.classList.remove('hidden');
+        app.hideAllViews('view-quotes');
 
         // Aktif kategori vurgusu
         document.querySelectorAll('.cat-shelf-item').forEach(c => c.classList.remove('active-cat'));
@@ -2146,9 +2453,7 @@ const app = {
     },
 
     async _loadDynamicAuthorInternal(authorKeyOrName) {
-        app.hideAllViews();
-        const viewAuthor = document.getElementById('view-dynamic-author');
-        if (viewAuthor) viewAuthor.classList.remove('hidden');
+        app.hideAllViews('view-dynamic-author');
         
         const container = document.getElementById('view-dynamic-author-content');
         container.innerHTML = '<div class="loading-pulse" style="text-align:center; padding:4rem;">Yazar bilgileri getiriliyor...</div>';
@@ -2298,18 +2603,21 @@ const app = {
                     const coverUrl = work.cover_i ? `https://covers.openlibrary.org/b/id/${work.cover_i}-M.jpg` : '';
                     
                     const item = document.createElement('div');
-                    item.style.cssText = 'width:120px; flex-shrink:0; cursor:pointer; text-align:center; transition:transform 0.2s;';
-                    item.onmouseover = () => item.style.transform = 'translateY(-5px)';
-                    item.onmouseout = () => item.style.transform = 'none';
+                    item.className = 'book-card';
+                    item.style.cssText = 'width:130px; flex-shrink:0; cursor:pointer; text-align:left; border-radius:8px; display:flex; flex-direction:column; justify-content:space-between; margin-bottom:10px; border:1px solid var(--glass-border); padding:0;';
                     item.onclick = () => app.handleRoute(`/kitap/${workKey}-${app.slugify(work.title_original || work.title)}`);
                     
-                    const imgHtml = coverUrl 
-                        ? `<img src="${coverUrl}" style="width:100%; height:180px; object-fit:cover; border-radius:8px; border:1px solid var(--glass-border); box-shadow:0 4px 10px rgba(0,0,0,0.5); margin-bottom:10px;">`
-                        : `<div style="width:100%; height:180px; border-radius:8px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); display:flex; align-items:center; justify-content:center; margin-bottom:10px; color:var(--text-secondary);"><i class="fa-solid fa-book fa-2x"></i></div>`;
+                    const coverHtml = coverUrl 
+                        ? `<img src="${coverUrl}" class="book-card-cover" alt="kitap kapağı" loading="lazy" style="height:100%; border-radius:4px 0 0 4px;">`
+                        : `<div class="book-card-cover-placeholder" style="height:100%;"><i class="fa-solid fa-book"></i></div>`;
                         
                     item.innerHTML = `
-                        ${imgHtml}
-                        <div style="font-size:0.9rem; font-weight:500; color:var(--text-primary); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.3;" title="${work.title_original || work.title}">${work.title}</div>
+                        <div class="book-card-cover-wrapper" style="height:180px;">
+                            ${coverHtml}
+                        </div>
+                        <div class="book-card-body" style="padding:10px 8px 8px 8px;">
+                            <div class="book-card-title" style="font-size:0.82rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; line-height:1.3; font-weight:500;" title="${work.title_original || work.title}">${work.title}</div>
+                        </div>
                     `;
                     worksContainer.appendChild(item);
                 });

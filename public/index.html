@@ -35,7 +35,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="/css/style.css?v=6">
+    <link rel="stylesheet" href="/css/style.css?v=15">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 
@@ -52,6 +52,22 @@
 </head>
 
 <body>
+    <!-- 3D Sinematik Giriş Portalı -->
+    <div id="cinematic-intro" class="cinematic-intro-overlay">
+        <div class="intro-book-container">
+            <div class="intro-book-3d">
+                <div class="intro-cover-front">
+                    <i class="fa-solid fa-pen-nib cover-emboss-icon"></i>
+                </div>
+                <div class="intro-cover-back"></div>
+                <div class="intro-pages">
+                    <!-- Sayfalar JS ile dinamik olarak yerleştirilecek -->
+                </div>
+            </div>
+            <div class="intro-prompt">Kitaplık kapıları aralanıyor...</div>
+        </div>
+    </div>
+
     <header class="glass-nav">
         <div class="nav-container">
             <a href="#" class="logo" onclick="app.showHome()">
@@ -90,17 +106,39 @@
             </div>
         </aside>
 
-        <main class="feed-container">
+        <main class="feed-container page-flip-container">
             <div class="view-section active page-turn-anim" id="view-home">
-                <div class="hero-section">
-                    <h1 style="font-size: 2rem;">Edebiyat Kulübüne Hoş Geldiniz</h1>
-                    <p style="font-size: 1.1rem; line-height: 1.8;">Kahvenizi alın, arkanıza yaslanın.<br>Dilerseniz sol
-                        taraftaki raflarımızdan birini seçerek diğer okurların neleri tartıştığına göz atabilirsiniz.
-                    </p>
+                <!-- 3D İnteraktif Parallaks Hero Sahnesi -->
+                <div class="reveal-element" id="interactive-3d-hero">
+                    <div class="parallax-scene" id="parallax-scene">
+                        <!-- Background Layer: Kitaplık Silüeti -->
+                        <div class="parallax-layer layer-bg">
+                            <div class="bookshelf-silhouette"></div>
+                        </div>
+                        
+                        <!-- Midground Layer: Altın Fener Glow -->
+                        <div class="parallax-layer layer-mid">
+                            <div class="glowing-lantern"></div>
+                        </div>
+                        
+                        <!-- Foreground Layer: 3D Kitap ve Başlıklar -->
+                        <div class="parallax-layer layer-fg">
+                            <div class="hero-3d-content">
+                                <h1 class="hero-premium-title">Okuryazmaz</h1>
+                                <div class="hero-brand-icon-wrapper">
+                                    <i class="fa-solid fa-pen-nib hero-brand-icon"></i>
+                                </div>
+                                <p class="hero-premium-subtitle">
+                                    <i class="fa-solid fa-feather-pointed" style="color: var(--accent-gold); margin-right: 8px;"></i>
+                                    Edebiyat Kulübü ve Seçkin Kitap Forumu
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Kütüphane İstatistikleri -->
-                <div class="stats-bar" id="stats-bar">
+                <div class="stats-bar reveal-element" id="stats-bar">
                     <div class="stat-card">
                         <i class="fa-solid fa-users stat-icon"></i>
                         <span class="stat-number" id="stat-users">0</span>
@@ -124,7 +162,7 @@
                 </div>
 
                 <!-- Günün Kitapları -->
-                <div class="home-section">
+                <div class="home-section reveal-element">
                     <h2 class="home-section-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Keşfet: Rastgele
                         Kitaplar</h2>
                     <div class="books-grid" id="home-books-container">
@@ -134,7 +172,7 @@
                 </div>
 
                 <!-- Son Eklenen Konular -->
-                <div class="home-section">
+                <div class="home-section reveal-element">
                     <h2 class="home-section-title"><i class="fa-solid fa-feather-pointed"></i> Son Eklenen Konular</h2>
                     <div class="recent-topics-list" id="home-recent-topics">
                         <div class="loading-pulse" style="text-align:center; padding:2rem;">Sayfalar çevriliyor...</div>
@@ -142,7 +180,7 @@
                 </div>
 
                 <!-- Son Üyeler -->
-                <div class="home-section">
+                <div class="home-section reveal-element">
                     <h2 class="home-section-title"><i class="fa-solid fa-user-group"></i> Cemiyete Yeni Katılanlar</h2>
                     <div class="members-grid" id="home-recent-members">
                         <div class="loading-pulse" style="text-align:center; padding:2rem; grid-column:1/-1;">Cemaat
@@ -654,7 +692,7 @@
     </div>
 
     <div id="toast-container"></div>
-    <script src="/js/app.js?v=7"></script>
+    <script src="/js/app.js?v=15"></script>
 </body>
 
 </html>

@@ -183,20 +183,22 @@ router.get('/posts/:id/history', requireAdmin, (req, res) => {
 // Bot aktiviteleri — son yorumlar ve konular
 router.get('/bot-activity', requireAdmin, (req, res) => {
     const query = `
-        SELECT 'post' as activity_type, posts.id, posts.content, posts.created_at, 
-               users.username, users.avatar_url,
-               topics.title as topic_title, topics.id as topic_id
-        FROM posts 
-        INNER JOIN users ON posts.user_id = users.id
-        INNER JOIN topics ON posts.topic_id = topics.id
-        WHERE users.is_ai = 1
-        UNION ALL
-        SELECT 'topic' as activity_type, topics.id, topics.content, topics.created_at,
-               users.username, users.avatar_url,
-               topics.title as topic_title, topics.id as topic_id
-        FROM topics
-        INNER JOIN users ON topics.user_id = users.id
-        WHERE users.is_ai = 1
+        SELECT * FROM (
+            SELECT 'post' as activity_type, posts.id, posts.content, posts.created_at AS created_at, 
+                   users.username, users.avatar_url,
+                   topics.title as topic_title, topics.id as topic_id
+            FROM posts 
+            INNER JOIN users ON posts.user_id = users.id
+            INNER JOIN topics ON posts.topic_id = topics.id
+            WHERE users.is_ai = 1
+            UNION ALL
+            SELECT 'topic' as activity_type, topics.id, topics.content, topics.created_at AS created_at,
+                   users.username, users.avatar_url,
+                   topics.title as topic_title, topics.id as topic_id
+            FROM topics
+            INNER JOIN users ON topics.user_id = users.id
+            WHERE users.is_ai = 1
+        )
         ORDER BY created_at DESC
         LIMIT 30
     `;

@@ -942,3 +942,584 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
     .nav-container { padding: 0.8rem 1rem; flex-wrap: wrap; gap: 10px; }
     .btn-primary { padding: 8px 14px !important; font-size: 0.85rem !important; }
 }
+
+/* ==========================================================================
+   PREMIUM 3D DESIGNS & ANIMATIONS Redesign - brand face & color palette intact
+   ========================================================================== */
+
+/* 3D Kitap Kartı Efektleri */
+.book-card {
+    perspective: 1500px;
+    background: var(--bg-charcoal) !important;
+    border: 1px solid var(--glass-border) !important;
+    overflow: visible !important;
+    transition: border-color 0.4s ease, box-shadow 0.4s ease !important;
+}
+
+.book-card:hover {
+    border-color: rgba(197, 160, 89, 0.4) !important;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* 3D Kapak Sarmalayıcısı */
+.book-card-cover-wrapper {
+    position: relative;
+    width: 100%;
+    height: 240px;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transform-origin: left center;
+}
+
+.book-card:hover .book-card-cover-wrapper {
+    transform: rotateY(-28deg) translateZ(10px);
+}
+
+/* 3D Kitap Sayfaları (Kitabın kalınlık efekti) */
+.book-card-cover-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    right: -10px;
+    width: 10px;
+    height: calc(100% - 8px);
+    background: linear-gradient(90deg, #eaeaea 0%, #fff 40%, #e0e0e0 80%, #a0a0a0 100%);
+    transform: rotateY(90deg);
+    transform-origin: left;
+    box-shadow: inset 1px 0 5px rgba(0,0,0,0.3);
+    border-radius: 0 2px 2px 0;
+    z-index: -1;
+}
+
+/* 3D Kitap Sırtı */
+.book-card-cover-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 6px;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%);
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* Görüntü kapak geçişi */
+.book-card-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    backface-visibility: hidden;
+    border-radius: 4px 0 0 4px;
+}
+
+/* Premium Sinematik Geçişler (Page Dissolve & Golden Glare Sweep) */
+.page-sweep-container {
+    position: relative;
+    overflow: hidden;
+    perspective: 1200px;
+}
+
+.page-sweep-active {
+    position: relative;
+}
+
+.page-sweep-active::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -150%;
+    width: 100%; height: 100%;
+    background: linear-gradient(
+        90deg, 
+        transparent 0%, 
+        rgba(197, 160, 89, 0.0) 30%, 
+        rgba(197, 160, 89, 0.18) 50%, 
+        rgba(197, 160, 89, 0.0) 70%, 
+        transparent 100%
+    );
+    transform: skewX(-25deg);
+    animation: goldGlareSweep 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    z-index: 10;
+    pointer-events: none;
+}
+
+@keyframes goldGlareSweep {
+    0% { left: -150%; }
+    100% { left: 150%; }
+}
+
+.page-dissolve-active {
+    animation: pageDissolve 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes pageDissolve {
+    0% {
+        opacity: 0;
+        transform: translateY(12px) scale(0.99);
+        filter: brightness(0.85);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: brightness(1);
+    }
+}
+
+/* 3D İnteraktif Parallaks Hero Sahnesi */
+#interactive-3d-hero {
+    height: 360px;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    background: radial-gradient(circle at 50% 50%, #221d18 0%, #11100f 100%);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 1200px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+    margin-bottom: 2rem;
+}
+
+.parallax-scene {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.parallax-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-style: preserve-3d;
+    pointer-events: none;
+}
+
+/* Background Layer: Antik Kütüphane Kitaplığı Silüeti */
+.layer-bg {
+    transform: translateZ(-100px) scale(1.3);
+    opacity: 0.12;
+    background-image: radial-gradient(var(--accent-gold) 1.2px, transparent 1.2px),
+                      radial-gradient(var(--accent-gold) 1.2px, #11100f 1.2px);
+    background-size: 36px 36px;
+    background-position: 0 0, 18px 18px;
+}
+
+.bookshelf-silhouette {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(0deg, rgba(17,16,15,0.95) 0%, transparent 100%);
+}
+
+/* Midground Layer: Altın Fener Işıması */
+.layer-mid {
+    transform: translateZ(-50px) scale(1.15);
+}
+
+.glowing-lantern {
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, rgba(197, 160, 89, 0.22) 0%, rgba(197, 160, 89, 0.05) 50%, transparent 70%);
+    border-radius: 50%;
+    filter: blur(12px);
+    animation: lanternPulse 4s ease-in-out infinite alternate;
+}
+
+@keyframes lanternPulse {
+    0% { transform: scale(0.92); opacity: 0.8; }
+    100% { transform: scale(1.08); opacity: 1; }
+}
+
+/* Foreground Layer: 3D Kitap ve Yazılar */
+.layer-fg {
+    transform: translateZ(30px) scale(0.92);
+}
+
+.hero-3d-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.hero-premium-title {
+    font-size: 3.2rem !important;
+    font-weight: 700 !important;
+    color: #ffffff;
+    text-shadow: 0 10px 20px rgba(0,0,0,0.7), 0 0 30px rgba(197,160,89,0.3);
+    margin-bottom: 12px;
+    letter-spacing: 2px;
+}
+
+.hero-premium-subtitle {
+    font-size: 1.15rem;
+    color: var(--accent-gold);
+    margin-top: 20px;
+    font-weight: 500;
+    text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+    letter-spacing: 1px;
+}
+
+/* Premium Giriş Logo/Favicon Kalem Ucu (Afiş Alternatifi) */
+.hero-brand-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 25px 0 15px 0;
+    position: relative;
+    filter: drop-shadow(0 0 30px rgba(197, 160, 89, 0.25));
+}
+
+.hero-brand-icon {
+    font-size: 5rem;
+    color: var(--accent-gold);
+    transform: rotate(25deg);
+    transition: all 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+    animation: floatIcon 4s ease-in-out infinite alternate;
+}
+
+.hero-brand-icon-wrapper:hover .hero-brand-icon {
+    transform: rotate(0deg) scale(1.18);
+    color: var(--accent-gold-hover);
+    filter: drop-shadow(0 0 30px rgba(197, 160, 89, 0.65));
+}
+
+/* Yüzen Estetik Logo Hareketi (Float Animation) */
+@keyframes floatIcon {
+    0% {
+        transform: translateY(0px) rotate(25deg);
+    }
+    100% {
+        transform: translateY(-8px) rotate(21deg);
+    }
+}
+
+/* Scroll Reveal (Akıcı Aşağı Kaydırma) Belirme Sınıfları */
+.reveal-element {
+    opacity: 0;
+    transform: translateY(25px) scale(0.98);
+    transition: opacity 0.8s cubic-bezier(0.25, 1, 0.5, 1), transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.reveal-element.revealed {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+/* Kütüphane Kitap Rafı Görsel Efektleri (Sidebar) */
+#categories-sidebar-list {
+    border-left: 2px solid rgba(197, 160, 89, 0.2);
+    padding-left: 10px;
+    position: relative;
+}
+
+#categories-sidebar-list::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--accent-gold) 0%, transparent 100%);
+}
+
+.cat-shelf-item {
+    border-left: 3px solid transparent !important;
+    border-radius: 0 8px 8px 0 !important;
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.cat-shelf-item::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(197, 160, 89, 0.08), transparent);
+    transition: left 0.6s ease;
+}
+
+.cat-shelf-item:hover::before {
+    left: 100%;
+}
+
+.cat-shelf-item:hover {
+    background: rgba(197, 160, 89, 0.04) !important;
+    transform: translateX(6px);
+    border-left-color: rgba(197, 160, 89, 0.5) !important;
+    color: var(--accent-gold) !important;
+}
+
+.cat-shelf-item.active-cat {
+    background: linear-gradient(90deg, rgba(197,160,89,0.12) 0%, rgba(197,160,89,0.02) 100%) !important;
+    border-left-color: var(--accent-gold) !important;
+    transform: translateX(4px);
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+}
+
+/* Premium Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(197, 160, 89, 0.25);
+    border-radius: 4px;
+    border: 2px solid var(--bg-dark);
+    transition: background 0.3s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-gold);
+}
+
+/* Cam Kartlar için Altın Işıma (Hover Glow) */
+.stat-card, .member-card, .topic-row {
+    transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+}
+
+.stat-card:hover {
+    border-color: rgba(197, 160, 89, 0.35) !important;
+    box-shadow: 0 10px 25px rgba(197, 160, 89, 0.08) !important;
+    transform: translateY(-4px) scale(1.02) !important;
+}
+
+.member-card:hover {
+    border-color: rgba(197, 160, 89, 0.35) !important;
+    box-shadow: 0 10px 25px rgba(197, 160, 89, 0.08) !important;
+    transform: translateY(-4px) scale(1.02) !important;
+}
+
+.topic-row:hover {
+    border-color: rgba(197, 160, 89, 0.25) !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Altın Varak Çizgi / Ayraç Efekti */
+.topics-header-divider, .sidebar-footer {
+    position: relative;
+    border: none !important;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(197, 160, 89, 0.4) 50%, transparent 100%) !important;
+    margin: 25px 0 !important;
+}
+
+/* Fullscreen Sinematik 3D Giriş Portalı v2 (Ekranı Kaplayan Dev Kitap) */
+.cinematic-intro-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: radial-gradient(circle at 50% 50%, #171411 0%, #060505 100%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    perspective: 1800px;
+    opacity: 1;
+    overflow: hidden;
+    transition: opacity 1.4s cubic-bezier(0.25, 1, 0.5, 1), transform 1.4s cubic-bezier(0.25, 1, 0.5, 1), filter 1.4s ease;
+}
+
+.intro-book-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transform-style: preserve-3d;
+    width: 100%;
+    height: 100%;
+}
+
+.intro-book-3d {
+    width: 75vw;
+    height: 75vh;
+    max-width: 840px;
+    max-height: 520px;
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(22deg) rotateY(-12deg) rotateZ(-3deg);
+    transition: transform 1.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.intro-book-3d.open {
+    transform: rotateX(18deg) rotateY(-8deg) rotateZ(-3deg) translateX(45%);
+}
+
+.intro-cover-front, .intro-cover-back {
+    position: absolute;
+    width: 100%; height: 100%;
+    background: linear-gradient(135deg, #1e1915 0%, #0b0a0a 100%);
+    border: 4px solid var(--accent-gold);
+    border-radius: 8px 16px 16px 8px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.9);
+    transform-origin: left center;
+    transition: transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.intro-cover-front {
+    z-index: 20;
+    transform: rotateY(0deg);
+}
+
+/* Dev Altın Marka Kalem Ucu Kabartma Efekti (Emboss) */
+.cover-emboss-icon {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) translateZ(10px) rotate(25deg);
+    color: var(--accent-gold);
+    font-size: 8.5rem;
+    text-shadow: 0 10px 25px rgba(0,0,0,0.85), 0 0 40px rgba(197,160,89,0.4);
+    filter: drop-shadow(0 10px 15px rgba(0,0,0,0.6));
+}
+
+.intro-cover-back {
+    transform: translateZ(-8px);
+    z-index: 1;
+}
+
+.intro-book-3d.open .intro-cover-front {
+    transform: rotateY(-155deg);
+}
+
+.intro-pages {
+    position: absolute;
+    width: 98%; height: 96%;
+    top: 2%; left: 1%;
+    transform-style: preserve-3d;
+    z-index: 10;
+}
+
+.intro-page {
+    position: absolute;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, #eae5d9 0%, #fffbf2 100%);
+    border-radius: 4px 12px 12px 4px;
+    border: 1px solid #d4cbb5;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.45);
+    transform-origin: left center;
+    transform: rotateY(0deg);
+    opacity: 0;
+    transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s ease;
+    padding: 3.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    backface-visibility: hidden;
+}
+
+.intro-book-3d.open .intro-page.flip {
+    animation: introPageFlip 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes introPageFlip {
+    0% { transform: rotateY(0deg); opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: rotateY(-160deg); opacity: 0; }
+}
+
+/* Akan Edebi Metin Stilleri */
+.intro-quote-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.1rem;
+    line-height: 1.6;
+    color: #3e3224;
+    text-align: center;
+    font-style: italic;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.8s ease-out;
+}
+
+.intro-quote-text.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.intro-quote-author {
+    margin-top: 20px;
+    font-family: 'Inter', sans-serif;
+    font-size: 1.15rem;
+    color: var(--accent-gold);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.8s ease-out 0.3s;
+}
+
+.intro-quote-author.visible {
+    opacity: 1;
+}
+
+/* Son Sayfa Altın Okuryazmaz Mührü */
+.intro-final-emblem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.intro-final-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 4.5rem;
+    font-weight: 700;
+    color: #111;
+    letter-spacing: 1px;
+    text-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    margin-bottom: 10px;
+}
+
+.intro-final-logo span {
+    color: var(--accent-gold);
+    text-shadow: 0 0 25px rgba(197, 160, 89, 0.5);
+}
+
+.intro-final-text {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.25rem;
+    color: #666;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.intro-prompt {
+    margin-top: 30px;
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    color: var(--accent-gold);
+    letter-spacing: 2px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+    opacity: 0.85;
+    animation: pulsePrompt 2s ease-in-out infinite alternate;
+}
+
+@keyframes pulsePrompt {
+    0% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Sonsuz Dalma Efekti (Cinematic Zoom Dive) */
+.cinematic-intro-overlay.zoom-out {
+    transform: scale(9) translateZ(500px);
+    filter: blur(16px);
+    opacity: 0;
+    pointer-events: none;
+}
+
