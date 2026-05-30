@@ -422,9 +422,9 @@ const app = {
             <div class="intro-page intro-page-final" style="z-index: 1;">
                 <div class="intro-final-emblem">
                     <div class="intro-final-logo" style="display:flex; align-items:center; justify-content:center; gap:0; font-family:'Playfair Display', serif; font-weight:700; position:relative; margin-bottom: 10px;">
-                        <span style="color:#C5A059; font-size:4.8rem; line-height:1; margin-right:-1px;">O</span>
-                        <span style="color:#111111; font-size:4.0rem; line-height:1; position:relative; top:2px;">kuryazmaz</span>
-                        <i class="fa-solid fa-pen-nib" style="color:#C5A059; font-size:1.6rem; transform: rotate(25deg); margin-left:6px; position:relative; top:-25px;"></i>
+                        <span class="intro-logo-O" style="color:#C5A059; line-height:1; margin-right:-1px;">O</span>
+                        <span class="intro-logo-rest" style="color:#111111; line-height:1; position:relative; top:2px;">kuryazmaz</span>
+                        <i class="fa-solid fa-pen-nib intro-logo-pen" style="color:#C5A059; transform: rotate(25deg); margin-left:6px; position:relative;"></i>
                     </div>
                     <div class="intro-final-text">Seçkin Kitap Topluluğu</div>
                 </div>
@@ -628,7 +628,7 @@ const app = {
                 const contentSnippet = t.content.replace(/<[^>]*>?/gm, '').substring(0, 85) + '...';
                 const replyCount = t.reply_count || 0;
                 return `
-                <div class="topic-row" onclick="app.loadTopicDetail(${t.id}, '${t.title.replace(/'/g, "\\'")}')" style="align-items:center;">
+                <div class="topic-row" onclick="app.loadTopicDetail(${t.id}, '${t.title.replace(/'/g, "\\'")}')">
                     <div style="width: 50px; height: 60px; border: 1px solid var(--glass-border); border-radius:6px; display:flex; align-items:center; justify-content:center; color: var(--accent-gold); background: rgba(197,160,89,0.05); flex-shrink:0;">
                          <i class="fa-solid fa-book-open" style="font-size: 1.4rem;"></i>
                     </div>
@@ -820,7 +820,7 @@ const app = {
                         const ava = t.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${t.username}&backgroundColor=1E1C1A&textColor=C5A059`;
                         const replyCount = t.reply_count || 0;
                         return `
-                        <div class="topic-row" onclick="app.loadTopicDetail(${t.id}, '${t.title.replace(/'/g, "\\'")}')" style="align-items:center; cursor:pointer;">
+                        <div class="topic-row" onclick="app.loadTopicDetail(${t.id}, '${t.title.replace(/'/g, "\\'")}')" style="cursor:pointer;">
                             <div style="flex:1; overflow:hidden;">
                                 <div class="topic-title" style="font-weight:600; font-size:1.2rem;">${t.title}</div>
                                 <div class="topic-meta">

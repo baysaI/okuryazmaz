@@ -1523,6 +1523,20 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
     pointer-events: none;
 }
 
+/* Intro Logo (son sayfa) - Desktop boyutları */
+.intro-logo-O {
+    font-size: 4.8rem;
+}
+
+.intro-logo-rest {
+    font-size: 4.0rem;
+}
+
+.intro-logo-pen {
+    font-size: 1.6rem;
+    top: -25px;
+}
+
 /* ==========================================================================
    COMPREHENSIVE MOBILE RESPONSIVE FIXES
    ========================================================================== */
@@ -1570,7 +1584,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
     }
 
     .intro-final-logo {
-        font-size: 2.2rem !important;
+        font-size: 1.6rem !important;
     }
 
     .intro-final-logo span:first-child {
@@ -1578,10 +1592,18 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
     }
 
     .intro-final-logo span:nth-child(2) {
-        font-size: 2rem !important;
+        font-size: 1.8rem !important;
     }
 
-    .intro-final-logo i {
+    .intro-logo-O {
+        font-size: 2.6rem !important;
+    }
+
+    .intro-logo-rest {
+        font-size: 1.8rem !important;
+    }
+
+    .intro-logo-pen {
         font-size: 0.9rem !important;
         top: -12px !important;
     }
@@ -1785,6 +1807,19 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
 
     .hero-premium-title {
         font-size: 1.4rem !important;
+    }
+
+    .intro-logo-O {
+        font-size: 2.2rem !important;
+    }
+
+    .intro-logo-rest {
+        font-size: 1.5rem !important;
+    }
+
+    .intro-logo-pen {
+        font-size: 0.7rem !important;
+        top: -10px !important;
     }
 }
 
