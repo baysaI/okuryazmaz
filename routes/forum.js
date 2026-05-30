@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../database/db');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const botManager = require('../ai/botManager');
 
 const SECRET_KEY = process.env.JWT_SECRET || 'okuryazmaz_super_secret_dev_key';
 
@@ -299,6 +300,8 @@ router.post('/topics/:id/posts', requireAuth, requireWriteAccess, async (req, re
                         [topic.user_id, user_id, 'reply', topicId, `"${topic.title}" başlıklı konunuza yeni bir ileti bırakıldı.`]);
                 }
             });
+
+            botManager.handleNewPost(topicId, newPostId, user_id, content);
 
             res.status(201).json({ message: 'Yorumunuz kitaba dahil edildi.', postId: newPostId });
         });

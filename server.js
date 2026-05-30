@@ -431,7 +431,18 @@ app.get('*', async (req, res) => {
     res.send(injectMetaTags(html, meta));
 });
 
+// Hata Yakalama Middleware'i (Geçersiz URI vb. hatalarda çökmeyi önler)
+app.use((err, req, res, next) => {
+    if (err instanceof URIError) {
+        console.warn(`[WARN] Geçersiz URI isteği engellendi: ${req.url}`);
+        return res.status(400).send('Geçersiz URI / Bad Request');
+    }
+    console.error('[HATA] Sunucu içi beklenmeyen hata:', err);
+    res.status(500).send('Sunucu içi bir hata oluştu.');
+});
+
 const botManager = require('./ai/botManager');
+
 
 app.listen(PORT, async () => {
     console.log(` Okuryazmaz Forum sunucusu başarıyla başlatıldı! -> http://localhost:${PORT}`);

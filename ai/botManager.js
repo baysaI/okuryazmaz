@@ -304,4 +304,146 @@ function startAutonomousLoop() {
     }, 3 * 60 * 1000);
 }
 
-module.exports = { initializeAIBots, simulateAIPosting, startAutonomousLoop, getRandomAvatar };
+async function handleNewPost(topicId, postId, postUserId, content) {
+    // 1. Yazılan postun yazarının AI olup olmadığını ve bilgilerini sorgulayalım
+    db.get("SELECT is_ai, username FROM users WHERE id = ?", [postUserId], async (err, authorUser) => {
+        if (err || !authorUser) return;
+
+        // 2. Konu bilgilerini ve konunun tüm iletilerini çekelim
+        db.get(`
+            SELECT t.title, t.content, t.user_id, u.username as topic_username, u.is_ai as topic_is_ai 
+            FROM topics t
+            LEFT JOIN users u ON t.user_id = u.id
+            WHERE t.id = ?
+        `, [topicId], (err, topic) => {
+            if (err || !topic) return;
+
+            db.all(`
+                SELECT p.*, u.username, u.is_ai 
+                FROM posts p
+                LEFT JOIN users u ON p.user_id = u.id
+                WHERE p.topic_id = ?
+                ORDER BY p.created_at ASC
+            `, [topicId], async (err, posts) => {
+                if (err || !posts) return;
+
+                // 3. Döngü engelleme (safeguard): Son 3 post yapay zeka tarafından atıldıysa durdur
+                let consecutiveAICount = 0;
+                for (let i = posts.length - 1; i >= 0; i--) {
+                    if (posts[i].is_ai) {
+                        consecutiveAICount++;
+                    } else {
+                        break;
+                    }
+                }
+
+                if (consecutiveAICount >= 3) {
+                    console.log(`[AI] Konu #${topicId} üzerinde çok fazla peş peşe yapay zeka iletisi var (${consecutiveAICount}). Döngüyü engellemek için durduruldu.`);
+                    return;
+                }
+
+                // 4. Karar aşaması: Cevap vermeli miyiz ve hangi bot vermeli?
+                let shouldReply = false;
+                let replyDelay = Math.floor(Math.random() * 15000) + 10000; // 10-25 saniye
+                let targetBotUsername = null;
+
+                // Mentions kontrolü (Bahsedilen bot var mı?)
+                const contentLower = content.toLowerCase();
+                if (contentLower.includes('librarian')) targetBotUsername = 'Librarian';
+                else if (contentLower.includes('murat_keser') || contentLower.includes('murat keser')) targetBotUsername = 'Murat_Keser';
+                else if (contentLower.includes('suskunokur') || contentLower.includes('suskun okur')) targetBotUsername = 'SuskunOkur';
+
+                if (targetBotUsername) {
+                    // Eğer bir bot etiketlendiyse/bahsedildiyse %90 ihtimalle cevap ver
+                    shouldReply = Math.random() < 0.9;
+                } else {
+                    // Etiketlenme yoksa, konuşma akışına göre karar ver:
+                    
+                    // A. Son postu yazan kişi ile konuyu açan bot aynı mı? Ve bir başkası bu konuya yazdı mı?
+                    // Yani: Konu sahibi bir bot ise ve bu yeni postu yazan kişi o bot DEĞİLSE (örn: insan veya başka bir bot o botun konusuna yazdıysa), konuyu açan bot konuyu devam ettirmek için yüksek olasılıkla (%65) yanıt yazar.
+                    const isReplyingToBotTopic = topic.topic_is_ai && (topic.user_id !== postUserId);
+                    
+                    if (isReplyingToBotTopic) {
+                        shouldReply = Math.random() < 0.65;
+                        targetBotUsername = topic.topic_username; // Konuyu açan bot yanıt verecek
+                    } else {
+                        // B. Eğer son post başka bir bota aitse (botlar arası etkileşim) %35 ihtimalle cevap ver
+                        const lastPostWasAI = authorUser.is_ai;
+                        if (lastPostWasAI) {
+                            shouldReply = Math.random() < 0.35;
+                        } else {
+                            // C. Eğer son post insana aitse ve konuda daha önce herhangi bir bot yazdıysa %45 ihtimalle cevap ver
+                            const hasAIParticipation = topic.topic_is_ai || posts.some(p => p.is_ai);
+                            if (hasAIParticipation) {
+                                shouldReply = Math.random() < 0.45;
+                            }
+                        }
+                    }
+                }
+
+                if (!shouldReply) return;
+
+                // 5. Cevap verecek botu seçelim
+                let queryBot = "SELECT id, username, about_me FROM users WHERE is_ai = 1";
+                let queryParams = [];
+
+                if (targetBotUsername) {
+                    queryBot += " AND username = ? LIMIT 1";
+                    queryParams.push(targetBotUsername);
+                } else {
+                    // Son yazan kişiyi (bot ise) hariç tut
+                    if (authorUser.is_ai) {
+                        queryBot += " AND username != ? ORDER BY RANDOM() LIMIT 1";
+                        queryParams.push(authorUser.username);
+                    } else {
+                        queryBot += " ORDER BY RANDOM() LIMIT 1";
+                    }
+                }
+
+                db.get(queryBot, queryParams, async (err, selectedBot) => {
+                    if (err || !selectedBot) return;
+
+                    // 6. Gemini promptunu hazırlayalım
+                    const contextPosts = posts.slice(-5).map(p => `${p.username}: ${p.content}`).join('\n');
+                    
+                    const prompt = `${STEALTH_INSTRUCTION}
+                    Senin kullanıcı adın: "${selectedBot.username}".
+                    Kişiliğin: "${selectedBot.about_me}".
+                    
+                    Şu an bir forum konusundaki sohbete dahil oluyorsun.
+                    Konu Başlığı: "${topic.title}"
+                    Konu Açıklaması: "${topic.content}"
+                    
+                    Konudaki son mesajlar:
+                    ${contextPosts}
+                    
+                    Görevin: Son yazan kişiye (${authorUser.username}) hitaben veya genel konunun gidişatına uygun olarak, kendi karakterine yakışır şekilde kısa (en fazla 2 cümle), aşırı samimi, gevşek ve doğal bir Türkçe ile yanıt yazmak. Karşıdaki kişi bir bot da olabilir, gerçek bir insan da. Eğer sana doğrudan soru sordularsa veya senin fikrini merak ediyorlarsa cevap ver, gerekirse sen de onlara kısa bir soru sor. Yapay zeka olduğunu asla belli etme, tırnak işareti vb kullanmadan doğrudan yanıtı dön.`;
+
+                    console.log(`[AI] ${selectedBot.username}, Konu #${topicId}'ye cevap hazırlıyor (Gecikme: ${Math.round(replyDelay / 1000)}s)...`);
+
+                    setTimeout(async () => {
+                        let aiReply = await generateWithGemini(prompt);
+                        if (aiReply) {
+                            aiReply = aiReply.replace(/^["']|["']$/g, '').trim();
+                            
+                            db.run('INSERT INTO posts (topic_id, user_id, content) VALUES (?, ?, ?)', [topicId, selectedBot.id, aiReply], function(err) {
+                                if (!err) {
+                                    console.log(`✨ [${selectedBot.username}] otonom olarak konuşmaya yanıt verdi.`);
+                                    // Yeni atılan bot mesajını da diğer botlar görebilsin diye zincirleme tetikliyoruz:
+                                    handleNewPost(topicId, this.lastID, selectedBot.id, aiReply);
+                                } else {
+                                    console.error(`[AI] Hata: Post veritabanına eklenemedi:`, err.message);
+                                }
+                            });
+                        } else {
+                            console.log(`[AI] ${selectedBot.username} için yanıt üretilemedi (Gemini API boş döndü veya hata oluştu).`);
+                        }
+                    }, replyDelay);
+                });
+            });
+        });
+    });
+}
+
+module.exports = { initializeAIBots, simulateAIPosting, startAutonomousLoop, getRandomAvatar, handleNewPost };
+
