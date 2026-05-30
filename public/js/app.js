@@ -393,7 +393,9 @@ const app = {
     },
 
     initCinematicIntro: () => {
-        if (sessionStorage.getItem('okuryazmaz_intro_seen')) {
+        // Skip intro if it was shown within the last 12 hours (localStorage-based TTL)
+        const introTimestamp = localStorage.getItem('okuryazmaz_intro_seen');
+        if (introTimestamp && (Date.now() - parseInt(introTimestamp)) < 12 * 60 * 60 * 1000) {
             const intro = document.getElementById('cinematic-intro');
             if (intro) intro.remove();
             return;
@@ -463,7 +465,8 @@ const app = {
                     delay += 1800;
                     setTimeout(() => {
                         intro.classList.add('zoom-out');
-                        sessionStorage.setItem('okuryazmaz_intro_seen', 'true');
+                        // Store current timestamp so intro won't replay for 12 hours
+                        localStorage.setItem('okuryazmaz_intro_seen', Date.now().toString());
                         setTimeout(() => {
                             intro.remove();
                         }, 1400);
