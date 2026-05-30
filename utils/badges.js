@@ -8,7 +8,7 @@ function checkAndAwardBadges(userId) {
     return new Promise((resolve) => {
         // Bot kullanıcılar rozet kazanamaz
         db.get('SELECT is_ai FROM users WHERE id = ?', [userId], (err, user) => {
-            if (err || !user || user.is_ai) return resolve([]);
+            if (err || !user) return resolve([]);
 
             db.all('SELECT code FROM user_badges ub JOIN badges b ON ub.badge_id = b.id WHERE ub.user_id = ?', [userId], (err, earned) => {
                 if (err) return resolve([]);
@@ -95,7 +95,7 @@ function checkAndAwardBadges(userId) {
  */
 function checkTimeBasedBadges(userId) {
     db.get('SELECT is_ai FROM users WHERE id = ?', [userId], (err, user) => {
-        if (err || !user || user.is_ai) return;
+        if (err || !user) return;
         const hour = new Date().getHours();
         if (hour >= 0 && hour < 5) {
             awardBadgeIfNotEarned(userId, 'night_owl');
@@ -110,7 +110,7 @@ function checkTimeBasedBadges(userId) {
  */
 function checkFirstCommenter(userId, topicId) {
     db.get('SELECT is_ai FROM users WHERE id = ?', [userId], (err, user) => {
-        if (err || !user || user.is_ai) return;
+        if (err || !user) return;
         db.get('SELECT count(*) as c FROM posts WHERE topic_id = ?', [topicId], (err, r) => {
             if (r && r.c === 1) {
                 awardBadgeIfNotEarned(userId, 'first_commenter');

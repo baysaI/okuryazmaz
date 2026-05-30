@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database/db');
 const jwt = require('jsonwebtoken');
-const { adminGrantBadge, adminRevokeBadge } = require('../utils/badges');
+const { adminGrantBadge, adminRevokeBadge, checkAndAwardBadges } = require('../utils/badges');
 
 const SECRET_KEY = process.env.JWT_SECRET || 'okuryazmaz_super_secret_dev_key';
 
@@ -96,6 +96,7 @@ router.post('/favorites/book', authenticate, (req, res) => {
         db.run('INSERT INTO user_favorite_books (user_id, book_title, book_author, book_cover_url, book_key) VALUES (?, ?, ?, ?, ?)',
             [req.user.id, book_title, book_author, book_cover_url, book_key], function(err) {
                 if (err) return res.status(500).json({ error: err.message });
+                checkAndAwardBadges(req.user.id);
                 res.json({ id: this.lastID, message: 'Favori kitap eklendi.' });
             });
     });
@@ -120,6 +121,7 @@ router.post('/favorites/author', authenticate, (req, res) => {
         db.run('INSERT INTO user_favorite_authors (user_id, author_name, author_photo_url, author_key) VALUES (?, ?, ?, ?)',
             [req.user.id, author_name, author_photo_url, author_key], function(err) {
                 if (err) return res.status(500).json({ error: err.message });
+                checkAndAwardBadges(req.user.id);
                 res.json({ id: this.lastID, message: 'Favori yazar eklendi.' });
             });
     });
@@ -147,6 +149,9 @@ router.post('/:id/follow', authenticate, (req, res) => {
         } else {
             db.run('INSERT INTO followers (follower_id, following_id) VALUES (?, ?)', [follower_id, following_id], function (err) {
                 if (err) return res.status(500).json({ error: 'Takip edilemedi.' });
+                
+                checkAndAwardBadges(following_id);
+                
                 const msg = `👤 ${req.user.username} seni takip etmeye başladı. Belki sen de onu geri takip etmek istersin!`;
                 db.run('INSERT INTO notifications (user_id, sender_id, type, message) VALUES (?, ?, ?, ?)', [following_id, follower_id, 'follow', msg], () => {
                     res.json({ status: 'followed' });

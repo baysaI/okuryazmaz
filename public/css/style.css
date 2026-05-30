@@ -1535,15 +1535,15 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
     }
 
     .intro-book-3d {
-        width: 92vw !important;
-        height: 55vh !important;
-        max-width: none !important;
-        max-height: none !important;
+        width: 70vw !important;
+        height: 45vh !important;
+        max-width: 340px !important;
+        max-height: 280px !important;
         transform: rotateX(12deg) rotateY(-6deg) rotateZ(-1deg) !important;
     }
 
     .intro-book-3d.open {
-        transform: rotateX(10deg) rotateY(-4deg) rotateZ(-1deg) translateX(30%) !important;
+        transform: rotateX(10deg) rotateY(-4deg) rotateZ(-1deg) translateX(20%) !important;
     }
 
     .intro-cover-front, .intro-cover-back {
@@ -1556,12 +1556,12 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
     }
 
     .intro-page {
-        padding: 1.2rem !important;
+        padding: 0.8rem 1rem !important;
     }
 
     .intro-quote-text {
-        font-size: 1.15rem !important;
-        line-height: 1.5 !important;
+        font-size: 0.95rem !important;
+        line-height: 1.4 !important;
     }
 
     .intro-quote-author {
@@ -1618,6 +1618,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
 
     /* --- 3) Topic Row Cards: Prevent horizontal overflow --- */
     .topic-row {
+        align-items: stretch !important;
         overflow: hidden !important;
         max-width: 100% !important;
         word-break: break-word !important;
@@ -1745,16 +1746,18 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
 /* Small phones (max-width: 400px) */
 @media (max-width: 400px) {
     .intro-book-3d {
-        width: 96vw !important;
-        height: 50vh !important;
+        width: 65vw !important;
+        height: 40vh !important;
+        max-width: 280px !important;
+        max-height: 240px !important;
     }
 
     .intro-book-3d.open {
-        transform: rotateX(8deg) rotateY(-2deg) rotateZ(0deg) translateX(25%) !important;
+        transform: rotateX(8deg) rotateY(-2deg) rotateZ(0deg) translateX(15%) !important;
     }
 
     .intro-quote-text {
-        font-size: 1rem !important;
+        font-size: 0.8rem !important;
     }
 
     .cover-emboss-icon {

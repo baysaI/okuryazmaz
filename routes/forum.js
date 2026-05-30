@@ -4,6 +4,7 @@ const db = require('../database/db');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const botManager = require('../ai/botManager');
+const { checkAndAwardBadges, checkTimeBasedBadges, checkFirstCommenter } = require('../utils/badges');
 
 const SECRET_KEY = process.env.JWT_SECRET || 'okuryazmaz_super_secret_dev_key';
 
@@ -209,6 +210,11 @@ router.post('/topics', requireAuth, requireWriteAccess, async (req, res) => {
         const stmt = db.prepare('INSERT INTO topics (category_id, user_id, title, content, book_reference_title, book_cover_url, book_author, book_pages, book_publish_date, book_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         stmt.run([category_id, user_id, title, content, bookTitle, coverUrl, author, pages, releaseDate, bookKey], function(err) {
             if (err) return res.status(500).json({ error: err.message });
+            
+            // Otomatik rozet kontrolleri
+            checkAndAwardBadges(user_id);
+            checkTimeBasedBadges(user_id);
+            
             res.status(201).json({ message: 'Konunuz başarıyla sayfalar arası yerini aldı.', topicId: this.lastID });
         });
         stmt.finalize();
@@ -302,6 +308,11 @@ router.post('/topics/:id/posts', requireAuth, requireWriteAccess, async (req, re
             });
 
             botManager.handleNewPost(topicId, newPostId, user_id, content);
+
+            // Otomatik rozet kontrolleri
+            checkAndAwardBadges(user_id);
+            checkTimeBasedBadges(user_id);
+            checkFirstCommenter(user_id, topicId);
 
             res.status(201).json({ message: 'Yorumunuz kitaba dahil edildi.', postId: newPostId });
         });
