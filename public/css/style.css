@@ -1554,15 +1554,15 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
     }
 
     .intro-book-3d {
-        width: 55vw !important;
+        width: 44vw !important;
         height: 40vh !important;
-        max-width: 200px !important;
+        max-width: 220px !important;
         max-height: 280px !important;
         transform: rotateX(5deg) rotateY(-3deg) rotateZ(0deg) !important;
     }
 
     .intro-book-3d.open {
-        transform: rotateX(3deg) rotateY(-2deg) rotateZ(0deg) !important;
+        transform: rotateX(3deg) rotateY(-2deg) rotateZ(0deg) translateX(50%) !important;
     }
 
     .intro-cover-front, .intro-cover-back {
@@ -1793,14 +1793,14 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
 /* Small phones (max-width: 400px) */
 @media (max-width: 400px) {
     .intro-book-3d {
-        width: 50vw !important;
+        width: 44vw !important;
         height: 35vh !important;
-        max-width: 170px !important;
+        max-width: 150px !important;
         max-height: 240px !important;
     }
 
     .intro-book-3d.open {
-        transform: rotateX(2deg) rotateY(-1deg) rotateZ(0deg) !important;
+        transform: rotateX(2deg) rotateY(-1deg) rotateZ(0deg) translateX(50%) !important;
     }
 
     .intro-quote-text {
