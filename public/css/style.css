@@ -1545,19 +1545,24 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
 
     /* --- 1) Cinematic Intro 3D Book: Scale down for phones --- */
     .cinematic-intro-overlay {
-        perspective: 800px !important;
+        perspective: 600px !important;
+    }
+
+    .intro-book-container {
+        align-items: center !important;
+        justify-content: center !important;
     }
 
     .intro-book-3d {
-        width: 135px !important;
-        height: 200px !important;
-        max-width: 135px !important;
-        max-height: 200px !important;
-        transform: rotateX(12deg) rotateY(-6deg) rotateZ(-1deg) !important;
+        width: 55vw !important;
+        height: 40vh !important;
+        max-width: 200px !important;
+        max-height: 280px !important;
+        transform: rotateX(5deg) rotateY(-3deg) rotateZ(0deg) !important;
     }
 
     .intro-book-3d.open {
-        transform: rotateX(10deg) rotateY(-4deg) rotateZ(-1deg) translateX(5px) !important;
+        transform: rotateX(3deg) rotateY(-2deg) rotateZ(0deg) !important;
     }
 
     .intro-cover-front, .intro-cover-back {
@@ -1584,33 +1589,33 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
     }
 
     .intro-final-logo {
-        font-size: 1.6rem !important;
+        font-size: 1.2rem !important;
     }
 
     .intro-final-logo span:first-child {
-        font-size: 2.6rem !important;
+        font-size: 1.6rem !important;
     }
 
     .intro-final-logo span:nth-child(2) {
-        font-size: 1.8rem !important;
+        font-size: 1.2rem !important;
     }
 
     .intro-logo-O {
-        font-size: 2.6rem !important;
+        font-size: 1.6rem !important;
     }
 
     .intro-logo-rest {
-        font-size: 1.8rem !important;
+        font-size: 1.2rem !important;
     }
 
     .intro-logo-pen {
-        font-size: 0.9rem !important;
-        top: -12px !important;
+        font-size: 0.6rem !important;
+        top: -8px !important;
     }
 
     .intro-final-text {
-        font-size: 0.85rem !important;
-        letter-spacing: 1.5px !important;
+        font-size: 0.6rem !important;
+        letter-spacing: 1px !important;
     }
 
     .intro-prompt {
@@ -1646,6 +1651,11 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
         max-width: 100% !important;
         word-break: break-word !important;
         padding: 15px 12px !important;
+    }
+
+    /* Mobilde ikon kutusunu gizle - gereksiz yer kaplıyor */
+    .topic-row > div:first-child:has(.fa-book-open) {
+        display: none !important;
     }
     
     .topic-row > div {
@@ -1783,22 +1793,39 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
 /* Small phones (max-width: 400px) */
 @media (max-width: 400px) {
     .intro-book-3d {
-        width: 120px !important;
-        height: 180px !important;
-        max-width: 120px !important;
-        max-height: 180px !important;
+        width: 50vw !important;
+        height: 35vh !important;
+        max-width: 170px !important;
+        max-height: 240px !important;
     }
 
     .intro-book-3d.open {
-        transform: rotateX(8deg) rotateY(-2deg) rotateZ(0deg) translateX(4px) !important;
+        transform: rotateX(2deg) rotateY(-1deg) rotateZ(0deg) !important;
     }
 
     .intro-quote-text {
-        font-size: 0.65rem !important;
+        font-size: 0.6rem !important;
     }
 
     .cover-emboss-icon {
-        font-size: 1.8rem !important;
+        font-size: 1.5rem !important;
+    }
+
+    .intro-logo-O {
+        font-size: 1.3rem !important;
+    }
+
+    .intro-logo-rest {
+        font-size: 1rem !important;
+    }
+
+    .intro-logo-pen {
+        font-size: 0.5rem !important;
+        top: -6px !important;
+    }
+
+    .intro-final-text {
+        font-size: 0.5rem !important;
     }
 
     .topic-title {
@@ -1807,19 +1834,6 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
 
     .hero-premium-title {
         font-size: 1.4rem !important;
-    }
-
-    .intro-logo-O {
-        font-size: 2.2rem !important;
-    }
-
-    .intro-logo-rest {
-        font-size: 1.5rem !important;
-    }
-
-    .intro-logo-pen {
-        font-size: 0.7rem !important;
-        top: -10px !important;
     }
 }
 
