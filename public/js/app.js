@@ -62,7 +62,13 @@ const app = {
             const username = path.split('/')[2];
             app._showProfileInternal(decodeURIComponent(username));
         } else if (path === '/admin') {
-            app._showAdminPanelInternal();
+            if (app.state.user && app.state.user.is_admin) {
+                app._showAdminPanelInternal();
+            } else {
+                app.toast('Bu alana sadece yöneticiler girebilir.');
+                app.handleRoute('/', true);
+                return;
+            }
         } else {
             app._showHomeInternal();
         }
@@ -387,14 +393,11 @@ const app = {
     },
 
     initCinematicIntro: () => {
-        // DEV TESTING ENABLED: Temporarily commented out sessionStorage check so you can test it on every refresh!
-        /*
         if (sessionStorage.getItem('okuryazmaz_intro_seen')) {
             const intro = document.getElementById('cinematic-intro');
             if (intro) intro.remove();
             return;
         }
-        */
 
         const intro = document.getElementById('cinematic-intro');
         if (!intro) return;
@@ -1394,6 +1397,11 @@ const app = {
     },
 
     _showAdminPanelInternal() {
+        if (!app.state.user || !app.state.user.is_admin) {
+            app.toast('Bu alana sadece yöneticiler girebilir.');
+            app.handleRoute('/', true);
+            return;
+        }
         app.hideAllViews('view-admin');
         app.switchAdminTab('bots');
     },
