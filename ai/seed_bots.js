@@ -142,7 +142,8 @@ async function seed() {
                     db.run("INSERT INTO users (username, email, password, avatar_url, about_me, is_ai) VALUES (?, ?, ?, ?, ?, 1)",
                         [p.username, email, hashedPassword, avatar, p.about], () => resolve());
                 } else {
-                    db.run("UPDATE users SET about_me = ?, avatar_url = ?, is_ai = 1 WHERE id = ?", [p.about, avatar, row.id], () => resolve());
+                    // Sadece biyografiyi güncelle, avatar_url'e dokunma (özel fotoğrafların silinmemesi için!)
+                    db.run("UPDATE users SET about_me = ?, is_ai = 1 WHERE id = ?", [p.about, row.id], () => resolve());
                 }
             });
         });
