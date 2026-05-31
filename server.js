@@ -22,16 +22,7 @@ const db = require('./database/db');
 app.set('trust proxy', 1);
 
 app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdnjs.cloudflare.com", "https://kit.fontawesome.com"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com", "https://kit.fontawesome.com"],
-            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "https://ka-f.fontawesome.com"],
-            imgSrc: ["'self'", "data:", "https://api.dicebear.com", "https://covers.openlibrary.org", "https://openlibrary.org", "https://*.dicebear.com"],
-            connectSrc: ["'self'", "https://openlibrary.org", "https://api.dicebear.com", "https://translate.googleapis.com", "https://ka-f.fontawesome.com"]
-        }
-    }
+    contentSecurityPolicy: false
 }));
 
 const corsOptions = {
