@@ -2329,6 +2329,7 @@ const app = {
             app.state.currentQuotes = quotes; 
             app.renderQuotes(quotes, container);
         } catch(e) {
+            console.error(e);
             container.innerHTML = '<div style="color:red;">Alıntılar yüklenemedi.</div>';
         }
     },
@@ -2483,6 +2484,7 @@ const app = {
             if(quotes.length > 0) app.renderQuotes(quotes, container);
             else container.innerHTML += '<p style="color:var(--text-secondary); text-align:center;">Bu esere ait alıntı bulunamadı.</p>';
         } catch(e) {
+            console.error(e);
             container.innerHTML = '<p style="color:#e74c3c; text-align:center;">Alıntılar yüklenemedi.</p>';
         }
     },
@@ -2684,6 +2686,7 @@ const app = {
             
             app.renderQuotes(quotes, container);
         } catch(e) {
+            console.error(e);
             container.innerHTML = '<div style="color:#e74c3c;">Alıntılar yüklenemedi.</div>';
         }
     },
