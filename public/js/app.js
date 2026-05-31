@@ -2356,7 +2356,7 @@ const app = {
             const safeContent = app.escapeHtml(q.content);
             const safeBookTitle = app.escapeHtml(q.book_title);
             const safeUsername = app.escapeHtml(q.username);
-            const safeAuthorName = app.escapeHtml(authorName);
+            const safeAuthorName = app.escapeHtml(q.book_author);
 
             const isLiked = q.is_liked > 0;
             const likeColor = isLiked ? '#e74c3c' : 'var(--text-secondary)';
@@ -2365,7 +2365,7 @@ const app = {
             const bookSlug = bookKey ? bookKey + '-' + app.slugify(q.book_title) : '';
             const coverUrl = q.book_cover_url || '';
             const isAdmin = app.state.user && app.state.user.is_admin;
-            const authorLink = authorName ? `<span onclick="app.handleRoute('/yazar/${encodeURIComponent(authorName)}')" style="color:var(--text-secondary); text-decoration:none; font-size:0.9rem; border-bottom:1px solid transparent; transition:border-bottom 0.2s; cursor:pointer;" onmouseover="this.style.borderBottom='1px solid var(--text-secondary)';" onmouseout="this.style.borderBottom='1px solid transparent';">— ${safeAuthorName}</span>` : '';
+            const authorLink = q.book_author ? `<span onclick="app.handleRoute('/yazar/${encodeURIComponent(q.book_author)}')" style="color:var(--text-secondary); text-decoration:none; font-size:0.9rem; border-bottom:1px solid transparent; transition:border-bottom 0.2s; cursor:pointer;" onmouseover="this.style.borderBottom='1px solid var(--text-secondary)';" onmouseout="this.style.borderBottom='1px solid transparent';">— ${safeAuthorName}</span>` : '';
 
             const div = document.createElement('div');
             div.className = 'fade-in';
