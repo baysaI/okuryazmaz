@@ -1374,8 +1374,6 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
 .intro-cover-front {
     z-index: 20;
     transform: translateZ(5px);
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
 }
 
 .cover-emboss-icon {
