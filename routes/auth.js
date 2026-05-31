@@ -4,7 +4,6 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../database/db');
 
-
 if (!process.env.JWT_SECRET) {
     throw new Error('FATAL ERROR: JWT_SECRET environment variable is not defined.');
 }
@@ -14,7 +13,6 @@ router.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
     if (!username || !password || !email) return res.status(400).json({ error: 'Kullanıcı adı, e-posta ve şifre zorunludur.' });
 
-    
     const usernameRegex = /^[a-zA-Z0-9_ğüşıöçĞÜŞİÖÇ\s-]{3,20}$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!usernameRegex.test(username.trim())) {
@@ -26,7 +24,6 @@ router.post('/register', async (req, res) => {
     if (password.length < 6) {
         return res.status(400).json({ error: 'Şifre en az 6 karakter olmalıdır.' });
     }
-    
     
     const ipAddress = req.ip || req.socket.remoteAddress || '127.0.0.1';
 
@@ -50,12 +47,10 @@ router.post('/register', async (req, res) => {
                 }
             }
 
-            
             const hashedPassword = await bcrypt.hash(password, 10);
             const initial = username.charAt(0).toUpperCase();
             const avatar_url = `https://api.dicebear.com/7.x/initials/svg?seed=${initial}&backgroundColor=2A2826&textColor=D4AF37&bold=true`;
 
-            
             const is_admin = 0;
             const insertStmt = db.prepare('INSERT INTO users (username, email, password, avatar_url, is_admin, ip_address) VALUES (?, ?, ?, ?, ?, ?)');
             
@@ -85,7 +80,6 @@ router.post('/login', (req, res) => {
             return res.status(403).json({ error: `Hesabınız yasaklandı. Sebep: ${user.ban_reason || 'Belirtilmemiş'}` });
         }
 
-        
         if (user.is_ai) {
             return res.status(403).json({ error: 'Yapay zeka hesapları bu kapıdan giriş yapamaz.' });
         }

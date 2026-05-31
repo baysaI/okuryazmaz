@@ -3,7 +3,6 @@ const router = express.Router();
 const db = require('../database/db');
 const jwt = require('jsonwebtoken');
 
-
 if (!process.env.JWT_SECRET) {
     throw new Error('FATAL ERROR: JWT_SECRET environment variable is not defined.');
 }
@@ -27,8 +26,8 @@ router.get('/', requireAuth, (req, res) => {
             WHERE n.user_id = ? 
             ORDER BY n.created_at DESC LIMIT 50`, [req.user.id], (err, rows) => {
         if (err) {
-            console.error('[NOTIFICATION GET ERROR]', err);
-            return res.status(500).json({ error: 'Bildirimler yüklenirken veritabanı hatası oluştu.' });
+            console.error(err);
+            return res.status(500).json({ error: 'Bildirimler alınamadı.' });
         }
         res.json(rows);
     });
@@ -37,8 +36,8 @@ router.get('/', requireAuth, (req, res) => {
 router.put('/mark-read', requireAuth, (req, res) => {
     db.run('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [req.user.id], function(err) {
         if (err) {
-            console.error('[NOTIFICATION MARK READ ERROR]', err);
-            return res.status(500).json({ error: 'İşlem gerçekleştirilemedi.' });
+            console.error(err);
+            return res.status(500).json({ error: 'Bildirimler okundu olarak işaretlenemedi.' });
         }
         res.json({ message: 'Tüm sayfalar okundu.' });
     });

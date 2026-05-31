@@ -7,7 +7,6 @@ const crypto = require('crypto');
 const botManager = require('../ai/botManager');
 const { checkAndAwardBadges, checkTimeBasedBadges, checkFirstCommenter } = require('../utils/badges');
 
-
 if (!process.env.JWT_SECRET) {
     throw new Error('FATAL ERROR: JWT_SECRET environment variable is not defined.');
 }
@@ -25,7 +24,6 @@ function requireAuth(req, res, next) {
     });
 }
 
-
 function requireWriteAccess(req, res, next) {
     if (!req.user) return res.status(401).json({ error: 'Giriş yapın.' });
     db.get('SELECT is_banned, ban_reason, is_muted, muted_until FROM users WHERE id = ?', [req.user.id], (err, user) => {
@@ -36,7 +34,6 @@ function requireWriteAccess(req, res, next) {
                 const kalan = Math.ceil((new Date(user.muted_until) - new Date()) / 60000);
                 return res.status(403).json({ error: `Susturuldunuz. Kalan süre: ${kalan} dakika.` });
             } else {
-                
                 db.run('UPDATE users SET is_muted = 0, muted_until = NULL WHERE id = ?', [req.user.id]);
             }
         }
@@ -57,7 +54,6 @@ function optionalAuth(req, res, next) {
     }
 }
 
-
 const viewCooldowns = new Map();
 function canIncrementView(topicId, identifier) {
     const key = `${topicId}:${identifier}`;
@@ -77,7 +73,7 @@ function canIncrementView(topicId, identifier) {
 router.get('/categories', (req, res) => {
     db.all('SELECT * FROM categories', [], (err, rows) => {
         if (err) {
-            console.error('[FORUM CATEGORIES GET ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Kategoriler listelenirken bir hata oluştu.' });
         }
         res.json(rows);
@@ -151,7 +147,7 @@ router.get('/categories/:id/topics', optionalAuth, (req, res) => {
 
     db.all(query, [catId], (err, rows) => {
         if (err) {
-            console.error('[FORUM TOPICS LIST ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Konular listelenirken hata oluştu.' });
         }
         res.json(rows);
@@ -189,7 +185,6 @@ router.post('/topics', requireAuth, requireWriteAccess, async (req, res) => {
                 user_id = row.id;
                 insertTopic();
             } else {
-                
                 const randomPassword = crypto.randomUUID();
                 const hashedPassword = await bcrypt.hash(randomPassword, 10);
                 const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${username}&backgroundColor=1A1A1A&textColor=D4AF37&bold=true`;
@@ -198,7 +193,7 @@ router.post('/topics', requireAuth, requireWriteAccess, async (req, res) => {
                 db.run('INSERT INTO users (username, email, password, avatar_url, is_ai) VALUES (?, ?, ?, ?, 1)', 
                     [username, email, hashedPassword, avatar], function(err) {
                         if (err) {
-                            console.error('[FORUM BOT CREATE ERROR]', err);
+                            console.error(err);
                             return res.status(500).json({ error: 'Yeni AI yazar oluşturulurken hata.' });
                         }
                         user_id = this.lastID;
@@ -214,10 +209,9 @@ router.post('/topics', requireAuth, requireWriteAccess, async (req, res) => {
         const stmt = db.prepare('INSERT INTO topics (category_id, user_id, title, content, book_reference_title, book_cover_url, book_author, book_pages, book_publish_date, book_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         stmt.run([category_id, user_id, title, content, bookTitle, coverUrl, author, pages, releaseDate, bookKey], function(err) {
             if (err) {
-                console.error('[FORUM TOPIC INSERT ERROR]', err);
+                console.error(err);
                 return res.status(500).json({ error: 'Konu oluşturulurken veritabanı hatası oluştu.' });
             }
-            
             
             checkAndAwardBadges(user_id);
             checkTimeBasedBadges(user_id);
@@ -238,7 +232,7 @@ router.get('/topics/:id', optionalAuth, (req, res) => {
 
     db.get('SELECT topics.*, users.username, users.avatar_url FROM topics LEFT JOIN users ON topics.user_id = users.id WHERE topics.id = ?', [topicId], (err, topic) => {
         if (err) {
-            console.error('[FORUM TOPIC DETAIL ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Konu detayları getirilemedi.' });
         }
         if (!topic) return res.status(404).json({ error: 'Aradığınız konu rüzgarda kaybolmuş.' });
@@ -246,7 +240,7 @@ router.get('/topics/:id', optionalAuth, (req, res) => {
 
         db.all('SELECT posts.*, users.username, users.avatar_url FROM posts LEFT JOIN users ON posts.user_id = users.id WHERE topic_id = ? ORDER BY created_at ASC', [topicId], (err, posts) => {
             if (err) {
-                console.error('[FORUM TOPIC POSTS ERROR]', err);
+                console.error(err);
                 return res.status(500).json({ error: 'İletiler getirilemedi.' });
             }
             res.json({ topic, posts });
@@ -267,7 +261,7 @@ router.get('/books/:key/topics', (req, res) => {
     const fallbackTitle = `%${req.query.title || ''}%`;
     db.all(query, [bookKey, fallbackTitle], (err, rows) => {
         if (err) {
-            console.error('[FORUM BOOK TOPICS ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Kitap konuları listelenemedi.' });
         }
         res.json(rows);
@@ -288,7 +282,6 @@ router.post('/topics/:id/posts', requireAuth, requireWriteAccess, async (req, re
                 user_id = row.id;
                 insertPost();
             } else {
-                
                 const randomPassword = crypto.randomUUID();
                 const hashedPassword = await bcrypt.hash(randomPassword, 10);
                 const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${username}&backgroundColor=1A1A1A&textColor=D4AF37&bold=true`;
@@ -297,7 +290,7 @@ router.post('/topics/:id/posts', requireAuth, requireWriteAccess, async (req, re
                 db.run('INSERT INTO users (username, email, password, avatar_url, is_ai) VALUES (?, ?, ?, ?, 1)', 
                     [username, email, hashedPassword, avatar], function(err) {
                         if (err) {
-                            console.error('[FORUM REPLY BOT CREATE ERROR]', err);
+                            console.error(err);
                             return res.status(500).json({ error: 'Yapay zeka hesabı oluşturulurken hata.' });
                         }
                         user_id = this.lastID;
@@ -313,7 +306,7 @@ router.post('/topics/:id/posts', requireAuth, requireWriteAccess, async (req, re
         const stmt = db.prepare('INSERT INTO posts (topic_id, user_id, content) VALUES (?, ?, ?)');
         stmt.run([topicId, user_id, content], function(err) {
             if (err) {
-                console.error('[FORUM POST INSERT ERROR]', err);
+                console.error(err);
                 return res.status(500).json({ error: 'Yorum eklenirken hata oluştu.' });
             }
             
@@ -328,7 +321,6 @@ router.post('/topics/:id/posts', requireAuth, requireWriteAccess, async (req, re
 
             botManager.handleNewPost(topicId, newPostId, user_id, content);
 
-            
             checkAndAwardBadges(user_id);
             checkTimeBasedBadges(user_id);
             checkFirstCommenter(user_id, topicId);
@@ -355,7 +347,7 @@ router.put('/posts/:id', requireAuth, (req, res) => {
         db.run("UPDATE posts SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             [content, req.params.id], function(err) {
                 if (err) {
-                    console.error('[FORUM POST EDIT ERROR]', err);
+                    console.error(err);
                     return res.status(500).json({ error: 'Yorum güncellenemedi.' });
                 }
                 res.json({ message: 'İleti başarıyla güncellendi.' });
@@ -375,7 +367,7 @@ router.get('/recent-topics', (req, res) => {
                    ORDER BY topics.created_at DESC LIMIT 6`;
     db.all(query, [], (err, rows) => {
         if (err) {
-            console.error('[FORUM RECENT TOPICS ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Son konular listelenemedi.' });
         }
         res.json(rows);
@@ -390,7 +382,7 @@ router.get('/stats', (req, res) => {
         (SELECT COUNT(*) FROM categories) as categories
     `, (err, stats) => {
         if (err) {
-            console.error('[FORUM STATS ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'İstatistikler alınamadı.' });
         }
         res.json(stats);
@@ -400,13 +392,12 @@ router.get('/stats', (req, res) => {
 router.get('/recent-members', (req, res) => {
     db.all(`SELECT id, username, avatar_url, created_at FROM users ORDER BY created_at DESC LIMIT 8`, [], (err, rows) => {
         if (err) {
-            console.error('[FORUM MEMBERS LIST ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Son üyeler listelenemedi.' });
         }
         res.json(rows);
     });
 });
-
 
 router.post('/translate-book', requireAuth, async (req, res) => {
     const { title, description, subjects } = req.body;
@@ -437,9 +428,9 @@ router.post('/translate-book', requireAuth, async (req, res) => {
     }
 });
 
-
-
-
+// ==========================================
+// ALINTILAR (QUOTES) API
+// ==========================================
 
 router.post('/quotes', requireAuth, requireWriteAccess, async (req, res) => {
     const { content, book_key, book_title } = req.body;
@@ -497,7 +488,7 @@ router.post('/quotes', requireAuth, requireWriteAccess, async (req, res) => {
     db.run("INSERT INTO quotes (user_id, book_key, book_title, book_author, book_cover_url, content) VALUES (?, ?, ?, ?, ?, ?)", 
         [user_id, finalBookKey, book_title, bookAuthor, bookCoverUrl, content], function(err) {
         if (err) {
-            console.error('[FORUM QUOTE INSERT ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Alıntı eklenirken hata oluştu.' });
         }
         res.status(201).json({ message: 'Alıntı kütüphaneye eklendi.', quoteId: this.lastID });
@@ -516,7 +507,7 @@ router.get('/quotes', (req, res) => {
     `;
     db.all(query, [currentUserId], (err, rows) => {
         if (err) {
-            console.error('[FORUM QUOTES LIST ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Alıntılar listelenemedi.' });
         }
         res.json(rows);
@@ -538,7 +529,7 @@ router.get('/books/:key/quotes', (req, res) => {
     `;
     db.all(query, [currentUserId, bookKey, fallbackTitle], (err, rows) => {
         if (err) {
-            console.error('[FORUM BOOK QUOTES ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Kitap alıntıları listelenemedi.' });
         }
         res.json(rows);
@@ -551,7 +542,7 @@ router.post('/quotes/:id/like', requireAuth, (req, res) => {
 
     db.get("SELECT * FROM quote_likes WHERE user_id = ? AND quote_id = ?", [userId, quoteId], (err, row) => {
         if (err) {
-            console.error('[FORUM QUOTE LIKE CHECK ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'İşlem gerçekleştirilemedi.' });
         }
 
@@ -575,7 +566,7 @@ router.delete('/quotes/:id', requireAuth, (req, res) => {
     db.run("DELETE FROM quote_likes WHERE quote_id = ?", [quoteId]);
     db.run("DELETE FROM quotes WHERE id = ?", [quoteId], function(err) {
         if (err) {
-            console.error('[FORUM QUOTE DELETE ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Alıntı silinirken hata oluştu.' });
         }
         res.json({ message: 'Alıntı silindi.' });
@@ -595,7 +586,7 @@ router.get('/quotes/by-author/:author', (req, res) => {
     `;
     db.all(query, [currentUserId, `%${author}%`], (err, rows) => {
         if (err) {
-            console.error('[FORUM AUTHOR QUOTES ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Alıntılar listelenemedi.' });
         }
         res.json(rows);
@@ -605,16 +596,16 @@ router.get('/quotes/by-author/:author', (req, res) => {
 router.get('/quotes/authors', (req, res) => {
     db.all("SELECT book_author, COUNT(*) as quote_count FROM quotes WHERE book_author IS NOT NULL AND book_author != '' GROUP BY book_author ORDER BY quote_count DESC", [], (err, rows) => {
         if (err) {
-            console.error('[FORUM QUOTE AUTHORS ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Yazarlar listelenemedi.' });
         }
         res.json(rows);
     });
 });
 
-
-
-
+// ==========================================
+// KİTAP PUANLAMA (RATINGS) API
+// ==========================================
 
 router.get('/books/:key/ratings', (req, res) => {
     const bookKey = req.params.key.startsWith('OL') ? '/works/' + req.params.key : req.params.key;
@@ -627,7 +618,7 @@ router.get('/books/:key/ratings', (req, res) => {
 
     db.get(statsQuery, [searchKey], (err, stats) => {
         if (err) {
-            console.error('[FORUM RATINGS GET ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Kitap puan durumu alınamadı.' });
         }
         
@@ -662,7 +653,7 @@ router.post('/books/:key/ratings', requireAuth, (req, res) => {
     const checkQuery = "SELECT book_key FROM book_ratings WHERE user_id = ? AND book_key LIKE ?";
     db.get(checkQuery, [userId, searchKey], (err, row) => {
         if (err) {
-            console.error('[FORUM RATING CHECK ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Puan kontrolü sırasında veritabanı hatası.' });
         }
 
@@ -670,7 +661,7 @@ router.post('/books/:key/ratings', requireAuth, (req, res) => {
             db.run("UPDATE book_ratings SET rating = ?, created_at = CURRENT_TIMESTAMP WHERE user_id = ? AND book_key = ?", 
                 [rating, userId, row.book_key], function(err) {
                 if (err) {
-                    console.error('[FORUM RATING UPDATE ERROR]', err);
+                    console.error(err);
                     return res.status(500).json({ error: 'Puan güncellenirken hata oluştu.' });
                 }
                 res.json({ message: 'Puanınız güncellendi.' });
@@ -679,7 +670,7 @@ router.post('/books/:key/ratings', requireAuth, (req, res) => {
             db.run("INSERT INTO book_ratings (user_id, book_key, rating) VALUES (?, ?, ?)", 
                 [userId, bookKey, rating], function(err) {
                 if (err) {
-                    console.error('[FORUM RATING INSERT ERROR]', err);
+                    console.error(err);
                     return res.status(500).json({ error: 'Puan eklenirken hata oluştu.' });
                 }
                 res.status(201).json({ message: 'Puanınız eklendi.' });

@@ -1,5 +1,7 @@
 const db = require('../database/db');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const axios = require('axios');
 
 const DICEBEAR_STYLES = ['avataaars', 'adventurer', 'lorelei', 'notionists', 'personas', 'bottts', 'big-smile', 'micah'];
 
@@ -44,13 +46,10 @@ const STEALTH_INSTRUCTION = `Sen bir edebiyat forumunda takılan sıradan, GERÇ
 5. Cümle sonlarına asla nokta (.) koyma (nokta çok resmi durur). Soru işareti, ünlem koyabilirsin ya da hiçbir şey koymadan bitir. Nadiren gülme efekti ("dhdjdj" veya "skdjsj") veya emoji ("👍", "🤦‍♂️", "🤷‍♂️") kullan.`;
 
 async function initializeAIBots() {
-    console.log('🤖 AI Personalar sisteme sıradan insan gibi yerleşiyor...');
-    const crypto = require('crypto');
-    const randomPassword = crypto.randomUUID();
-    const hashedPassword = await bcrypt.hash(randomPassword, 10);
-
     db.serialize(() => {
-        aiPersonas.forEach(persona => {
+        aiPersonas.forEach(async (persona) => {
+            const randomPassword = crypto.randomUUID();
+            const hashedPassword = await bcrypt.hash(randomPassword, 10);
             db.get("SELECT id FROM users WHERE username = ? OR email = ?", [persona.username, persona.email], (err, user) => {
                 if (!user) {
                     const stmt = db.prepare('INSERT INTO users (username, email, password, avatar_url, about_me, is_ai) VALUES (?, ?, ?, ?, ?, 1)');
@@ -67,9 +66,8 @@ async function initializeAIBots() {
 async function generateWithGemini(prompt) {
     const key = (process.env.GEMINI_API_KEY || '').trim();
     if (!key) return null;
-    const axios = require('axios');
     try {
-        const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent`, {
+        const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`, {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
                 temperature: 0.9,
@@ -77,26 +75,16 @@ async function generateWithGemini(prompt) {
             }
         }, {
             headers: {
-                'x-goog-api-key': key,
-                'Content-Type': 'application/json'
+                'x-goog-api-key': key
             }
         });
-        
         const candidates = response.data?.candidates;
-        if (!candidates || candidates.length === 0) {
-            console.log('[AI] Gemini boş candidates döndü:', JSON.stringify(response.data).substring(0, 300));
-            return null;
-        }
+        if (!candidates || candidates.length === 0) return null;
         const text = candidates[0]?.content?.parts?.[0]?.text;
-        if (!text) {
-            console.log('[AI] Gemini text boş döndü:', JSON.stringify(candidates[0]).substring(0, 300));
-            return null;
-        }
+        if (!text) return null;
         return text.trim();
     } catch (e) {
-        const status = e.response?.status;
-        const errData = e.response?.data;
-        console.error(`[AI] Gemini API Hatası (HTTP ${status}):`, JSON.stringify(errData || e.message).substring(0, 500));
+        console.error(e.message);
         return null;
     }
 }
@@ -114,8 +102,7 @@ function simulateAIPosting() {
     db.get("SELECT id, username, about_me FROM users WHERE is_ai = 1 ORDER BY RANDOM() LIMIT 1", async (err, bot) => {
         if (!bot) return;
         
-        
-        const today = new Date().toISOString().split('T')[0]; 
+        const today = new Date().toISOString().split('T')[0];
         const canPostTopic = await new Promise((resolve) => {
             db.get(
                 `SELECT COUNT(*) as count FROM topics 
@@ -127,7 +114,6 @@ function simulateAIPosting() {
                 }
             );
         });
-        
         
         const rand = Math.random();
         const shouldReply = rand > 0.3;
@@ -148,18 +134,14 @@ function simulateAIPosting() {
 
                     let aiReply = await generateWithGemini(prompt);
                     if (aiReply) {
-                        
                         aiReply = aiReply.replace(/^["']|["']$/g, '').trim();
                         db.run('INSERT INTO posts (topic_id, user_id, content) VALUES (?, ?, ?)', [topic.id, bot.id, aiReply]);
-                        console.log(`✨ [${bot.username}] otonom olarak yorum yaptı.`);
                     }
                 }
             });
         } else if (shouldQuote) {
-            console.log(`📖 [${bot.username}] otonom olarak bir alıntı paylaşıyor.`);
             postNewQuote(bot);
         } else if (canPostTopic) {
-            console.log(`📝 [${bot.username}] yeni konu açmaya çalışıyor (bugünkü limit uygun).`);
             postNewTopic(bot);
         }
     });
@@ -191,7 +173,6 @@ async function postNewQuote(bot) {
         res = res.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
         const data = JSON.parse(res);
         if (data.book_title && data.quote) {
-            const axios = require('axios');
             let bookKey = null;
             let bookAuthor = null;
             let bookCoverUrl = null;
@@ -209,15 +190,13 @@ async function postNewQuote(bot) {
             db.run('INSERT INTO quotes (user_id, book_title, book_key, book_author, book_cover_url, content) VALUES (?, ?, ?, ?, ?, ?)', 
                 [bot.id, data.book_title, bookKey, bookAuthor, bookCoverUrl, data.quote]);
             if (bookKey) {
-                
                 const rating = Math.random() < 0.2 ? Math.floor(Math.random() * 2) + 1 : Math.floor(Math.random() * 3) + 3;
                 const cleanKey = bookKey.replace('/works/', '');
                 db.run('INSERT OR REPLACE INTO book_ratings (user_id, book_key, rating) VALUES (?, ?, ?)', [bot.id, cleanKey, rating]);
             }
-            console.log(`✨ [${bot.username}] Alıntı Paylaştı: ${data.book_title} — ${bookAuthor || 'Yazar bilinmiyor'} (Puan: ${bookKey ? 'Verildi' : 'Yok'})`);
         }
     } catch(e) {
-        console.error('Alıntı botu JSON parse hatası:', e.message);
+        console.error(e.message);
     }
 }
 
@@ -227,7 +206,7 @@ async function postNewTopic(bot) {
     Senin kişiliğin: "${bot.about_me}".
     Forumda yeni bir konu başlatacaksın. Şu konular zaten açıldı: [${recentTopics}]. 
     Lütfen bu konulardan FARKLI, özgün bir eser incelemesi veya edebi tartışma konusu üret.
-    İçeriği kısa tut (3-4 cümle max), günlük dilde yaz.
+    İçerikzi kısa tut (3-4 cümle max), günlük dilde yaz.
     Sadece ve sadece şu formatta JSON dön: {"title": "Başlık", "content": "İçerik", "book_reference": "Kitap Adı"}.
     Başka hiçbir şey ekleme.`;
 
@@ -238,7 +217,6 @@ async function postNewTopic(bot) {
         rawJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
         const aiTopicData = JSON.parse(rawJson);
         
-        const axios = require('axios');
         let coverUrl = null, author = null, pages = null, releaseDate = null, bookKey = null;
         try {
             const searchRes = await axios.get(`https://openlibrary.org/search.json?title=${encodeURIComponent(aiTopicData.book_reference)}&limit=5`);
@@ -256,7 +234,6 @@ async function postNewTopic(bot) {
         db.run('INSERT INTO topics (category_id, user_id, title, content, book_reference_title, book_cover_url, book_author, book_pages, book_publish_date, book_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
             [cat_id, bot.id, aiTopicData.title, aiTopicData.content, aiTopicData.book_reference, coverUrl, author, pages, releaseDate, bookKey], function(err) {
             if (!err) {
-                console.log(`✨ [${bot.username}] otonom olarak yeni bir konu neşretti.`);
                 if (bookKey) {
                     const rating = Math.random() < 0.2 ? Math.floor(Math.random() * 2) + 1 : Math.floor(Math.random() * 3) + 3;
                     const cleanKey = bookKey.replace('/works/', '');
@@ -264,7 +241,9 @@ async function postNewTopic(bot) {
                 }
             }
         });
-    } catch(e) { console.log('Bot konu üretirken JSON hatası aldı.'); }
+    } catch(e) {
+        console.error(e.message);
+    }
 }
 
 function simulateAIViews() {
@@ -276,10 +255,8 @@ function simulateAIViews() {
     `, (err, topics) => {
         if (err || !topics) return;
         topics.forEach(topic => {
-            
             const maxViews = (topic.id * 17) % 26 + 5; 
             if (topic.views < maxViews) {
-                
                 if (Math.random() > 0.6) {
                     db.run('UPDATE topics SET views = views + 1 WHERE id = ?', [topic.id]);
                 }
@@ -302,18 +279,15 @@ function startAutonomousLoop() {
         nextAction();
     }, 10000);
 
-    
     setInterval(() => {
         simulateAIViews();
     }, 3 * 60 * 1000);
 }
 
 async function handleNewPost(topicId, postId, postUserId, content) {
-    
     db.get("SELECT is_ai, username FROM users WHERE id = ?", [postUserId], async (err, authorUser) => {
         if (err || !authorUser) return;
 
-        
         db.get(`
             SELECT t.title, t.content, t.user_id, u.username as topic_username, u.is_ai as topic_is_ai 
             FROM topics t
@@ -331,7 +305,6 @@ async function handleNewPost(topicId, postId, postUserId, content) {
             `, [topicId], async (err, posts) => {
                 if (err || !posts) return;
 
-                
                 let consecutiveAICount = 0;
                 for (let i = posts.length - 1; i >= 0; i--) {
                     if (posts[i].is_ai) {
@@ -341,42 +314,29 @@ async function handleNewPost(topicId, postId, postUserId, content) {
                     }
                 }
 
-                if (consecutiveAICount >= 3) {
-                    console.log(`[AI] Konu #${topicId} üzerinde çok fazla peş peşe yapay zeka iletisi var (${consecutiveAICount}). Döngüyü engellemek için durduruldu.`);
-                    return;
-                }
+                if (consecutiveAICount >= 3) return;
 
-                
                 let shouldReply = false;
                 let replyDelay = Math.floor(Math.random() * 15000) + 10000; 
                 let targetBotUsername = null;
 
-                
                 const contentLower = content.toLowerCase();
                 if (contentLower.includes('librarian')) targetBotUsername = 'Librarian';
                 else if (contentLower.includes('murat_keser') || contentLower.includes('murat keser')) targetBotUsername = 'Murat_Keser';
                 else if (contentLower.includes('suskunokur') || contentLower.includes('suskun okur')) targetBotUsername = 'SuskunOkur';
 
                 if (targetBotUsername) {
-                    
                     shouldReply = Math.random() < 0.9;
                 } else {
-                    
-                    
-                    
-                    
                     const isReplyingToBotTopic = topic.topic_is_ai && (topic.user_id !== postUserId);
-                    
                     if (isReplyingToBotTopic) {
                         shouldReply = Math.random() < 0.65;
-                        targetBotUsername = topic.topic_username; 
+                        targetBotUsername = topic.topic_username;
                     } else {
-                        
                         const lastPostWasAI = authorUser.is_ai;
                         if (lastPostWasAI) {
                             shouldReply = Math.random() < 0.35;
                         } else {
-                            
                             const hasAIParticipation = topic.topic_is_ai || posts.some(p => p.is_ai);
                             if (hasAIParticipation) {
                                 shouldReply = Math.random() < 0.45;
@@ -387,7 +347,6 @@ async function handleNewPost(topicId, postId, postUserId, content) {
 
                 if (!shouldReply) return;
 
-                
                 let queryBot = "SELECT id, username, about_me FROM users WHERE is_ai = 1";
                 let queryParams = [];
 
@@ -395,7 +354,6 @@ async function handleNewPost(topicId, postId, postUserId, content) {
                     queryBot += " AND username = ? LIMIT 1";
                     queryParams.push(targetBotUsername);
                 } else {
-                    
                     if (authorUser.is_ai) {
                         queryBot += " AND username != ? ORDER BY RANDOM() LIMIT 1";
                         queryParams.push(authorUser.username);
@@ -407,7 +365,6 @@ async function handleNewPost(topicId, postId, postUserId, content) {
                 db.get(queryBot, queryParams, async (err, selectedBot) => {
                     if (err || !selectedBot) return;
 
-                    
                     const contextPosts = posts.slice(-5).map(p => `${p.username}: ${p.content}`).join('\n');
                     
                     const prompt = `${STEALTH_INSTRUCTION}
@@ -423,24 +380,15 @@ async function handleNewPost(topicId, postId, postUserId, content) {
                     
                     Görevin: Son yazan kişiye (${authorUser.username}) hitaben veya genel konunun gidişatına uygun olarak, kendi karakterine yakışır şekilde kısa (en fazla 2 cümle), aşırı samimi, gevşek ve doğal bir Türkçe ile yanıt yazmak. Karşıdaki kişi bir bot da olabilir, gerçek bir insan da. Eğer sana doğrudan soru sordularsa veya senin fikrini merak ediyorlarsa cevap ver, gerekirse sen de onlara kısa bir soru sor. Yapay zeka olduğunu asla belli etme, tırnak işareti vb kullanmadan doğrudan yanıtı dön.`;
 
-                    console.log(`[AI] ${selectedBot.username}, Konu #${topicId}'ye cevap hazırlıyor (Gecikme: ${Math.round(replyDelay / 1000)}s)...`);
-
                     setTimeout(async () => {
                         let aiReply = await generateWithGemini(prompt);
                         if (aiReply) {
                             aiReply = aiReply.replace(/^["']|["']$/g, '').trim();
-                            
                             db.run('INSERT INTO posts (topic_id, user_id, content) VALUES (?, ?, ?)', [topicId, selectedBot.id, aiReply], function(err) {
                                 if (!err) {
-                                    console.log(`✨ [${selectedBot.username}] otonom olarak konuşmaya yanıt verdi.`);
-                                    
                                     handleNewPost(topicId, this.lastID, selectedBot.id, aiReply);
-                                } else {
-                                    console.error(`[AI] Hata: Post veritabanına eklenemedi:`, err.message);
                                 }
                             });
-                        } else {
-                            console.log(`[AI] ${selectedBot.username} için yanıt üretilemedi (Gemini API boş döndü veya hata oluştu).`);
                         }
                     }, replyDelay);
                 });
@@ -450,4 +398,3 @@ async function handleNewPost(topicId, postId, postUserId, content) {
 }
 
 module.exports = { initializeAIBots, simulateAIPosting, startAutonomousLoop, getRandomAvatar, handleNewPost };
-

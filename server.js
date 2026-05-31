@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const axios = require('axios');
 
 const authRoutes = require('./routes/auth');
 const forumRoutes = require('./routes/forum');
@@ -18,26 +19,57 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const db = require('./database/db');
 
-
 app.set('trust proxy', 1);
 
-
 app.use(helmet({
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdnjs.cloudflare.com", "https://kit.fontawesome.com"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com", "https://kit.fontawesome.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com", "https://ka-f.fontawesome.com"],
+            imgSrc: ["'self'", "data:", "https://api.dicebear.com", "https://covers.openlibrary.org", "https://openlibrary.org", "https://*.dicebear.com"],
+            connectSrc: ["'self'", "https://openlibrary.org", "https://api.dicebear.com", "https://translate.googleapis.com", "https://ka-f.fontawesome.com"]
+        }
+    }
 }));
 
-
-const allowedOrigins = ['https://okuryazmaz.com', 'http://localhost:3000', 'http://localhost:5000', 'http://127.0.0.1:3000', 'http://127.0.0.1:5000'];
-app.use(cors({
+const corsOptions = {
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        const whitelist = ['https://okuryazmaz.com', 'http://localhost:3000', 'http://127.0.0.1:3000'];
+        if (!origin || whitelist.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
-            callback(new Error('CORS policy does not allow access from this origin.'));
+            callback(new Error('CORS engeli.'));
         }
     },
     credentials: true
-}));
+};
+app.use(cors(corsOptions));
+
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    message: { error: 'Çok fazla istek gönderdiniz. Lütfen dinlenin.' }
+});
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    message: { error: 'Çok fazla deneme yaptınız. Lütfen 15 dakika bekleyin.' }
+});
+
+const postLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 10,
+    message: { error: 'Çok hızlı yazıyorsunuz. Lütfen biraz bekleyin.' }
+});
+
+app.use('/api', generalLimiter);
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/forum/topics', postLimiter);
+app.use('/api/forum/quotes', postLimiter);
 
 app.use(express.static(path.join(__dirname, 'public'), {
     etag: false,
@@ -50,29 +82,6 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
-
-
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 150, 
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Çok fazla istek gönderdiniz. Lütfen biraz bekleyin.' }
-});
-
-const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 15, 
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { error: 'Güvenlik nedeniyle çok fazla deneme yaptınız. Lütfen 15 dakika sonra tekrar deneyin.' }
-});
-
-
-app.use('/api', apiLimiter);
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-
 
 app.use('/api', (req, res, next) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -92,15 +101,11 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'success', message: 'Okuryazmaz Sunucusu ayakta ve çalışıyor!' });
 });
 
-
 app.all('/api/*', (req, res) => {
     res.status(404).json({ error: 'Bu API yolu bulunamadı.' });
 });
 
-
 app.locals.cachedPopularBooks = [];
-const axios = require('axios');
-
 
 const indexPath = path.join(__dirname, 'public', 'index.html');
 let cachedIndexHtml = fs.readFileSync(indexPath, 'utf8');
@@ -111,15 +116,23 @@ if (process.env.NODE_ENV !== 'production') {
     });
 }
 
-
 function escapeXml(str) {
     if (!str) return '';
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 const SITEMAP_CACHE_PATH = path.join(__dirname, 'database', 'sitemap_cache.json');
-const SITEMAP_CACHE_MAX_AGE = 24 * 60 * 60 * 1000; 
+const SITEMAP_CACHE_MAX_AGE = 24 * 60 * 60 * 1000;
 
 function loadSitemapCache() {
     try {
@@ -128,11 +141,10 @@ function loadSitemapCache() {
             if (Date.now() - data.timestamp < SITEMAP_CACHE_MAX_AGE) {
                 app.locals.cachedPopularBooks = data.books || [];
                 cachedPopularAuthors = data.authors || [];
-                console.log(`[SEO] Cache'den yüklendi: ${data.books.length} kitap, ${data.authors.length} yazar`);
                 return true;
             }
         }
-    } catch(e) { console.error('[SEO] Cache okuma hatası:', e.message); }
+    } catch(e) { console.error(e.message); }
     return false;
 }
 
@@ -144,8 +156,7 @@ function saveSitemapCache() {
             authors: cachedPopularAuthors
         };
         fs.writeFileSync(SITEMAP_CACHE_PATH, JSON.stringify(data));
-        console.log('[SEO] Cache dosyaya kaydedildi.');
-    } catch(e) { console.error('[SEO] Cache yazma hatası:', e.message); }
+    } catch(e) { console.error(e.message); }
 }
 
 function slugify(text) {
@@ -163,11 +174,8 @@ function slugify(text) {
 }
 
 async function fetchPopularBooksForSitemap() {
-    console.log('[SEO] Hedef kitleye (Türkiye) özel dev kitap arşivi arka planda toplanmaya başlandı...');
-    
-    
     const queries = [
-        { q: 'language:tur', limit: 1000 }, 
+        { q: 'language:tur', limit: 1000 },
         { q: 'author:"Sabahattin Ali"', limit: 50 },
         { q: 'author:"Orhan Pamuk"', limit: 100 },
         { q: 'author:"Oğuz Atay"', limit: 50 },
@@ -199,20 +207,16 @@ async function fetchPopularBooksForSitemap() {
                         }
                     }
                 });
-                console.log(`[SEO] Hedef Sorgu Eklendi: ${item.q} | Toplam Kitap: ${app.locals.cachedPopularBooks.length}`);
             }
         } catch(e) {
-            console.error(`[SEO] ${item.q} çekilirken hata:`, e.message);
+            console.error(e.message);
         }
         await new Promise(resolve => setTimeout(resolve, 2000));
     }
-    console.log(`[SEO] MÜKEMMEL! Türk okur kitlesine özel toplam ${app.locals.cachedPopularBooks.length} kitap sitemap için belleğe alındı.`);
 }
-
 
 let cachedPopularAuthors = [];
 async function fetchPopularAuthorsForSitemap() {
-    console.log("[SEO] Popüler yazar arşivi çekiliyor (Sitemap için)...");
     const popularAuthors = [
         "Sabahattin Ali", "Orhan Pamuk", "Oğuz Atay", "Yaşar Kemal", "Ahmet Hamdi Tanpınar",
         "Fyodor Dostoevsky", "Franz Kafka", "Lev Tolstoy", "George Orwell", "Stefan Zweig",
@@ -230,13 +234,11 @@ async function fetchPopularAuthorsForSitemap() {
                 }
             }
         } catch(e) {
-            console.error(`[SEO] Yazar ${authorName} çekilirken hata:`, e.message);
+            console.error(e.message);
         }
         await new Promise(resolve => setTimeout(resolve, 1500));
     }
-    console.log(`[SEO] Toplam ${cachedPopularAuthors.length} yazar sitemap için belleğe alındı.`);
 }
-
 
 if (!loadSitemapCache()) {
     (async () => {
@@ -244,11 +246,7 @@ if (!loadSitemapCache()) {
         await fetchPopularAuthorsForSitemap();
         saveSitemapCache();
     })();
-} else {
-    console.log('[SEO] Sitemap cache güncel, OpenLibrary çağrısı atlandı. Sunucu hızlı başladı.');
 }
-
-
 
 function dbAllAsync(query, params = []) {
     return new Promise((resolve, reject) => {
@@ -269,7 +267,6 @@ app.get('/sitemap.xml', async (req, res) => {
     <url><loc>https://okuryazmaz.com/kategori/2-bilim-kurgu-ve-fantastik</loc><priority>0.8</priority></url>
 `;
 
-        
         const topics = await dbAllAsync("SELECT id, title, updated_at FROM topics WHERE IFNULL(is_hidden, 0) = 0");
         topics.forEach(t => {
             const slug = slugify(t.title) ? '-' + slugify(t.title) : '';
@@ -277,7 +274,6 @@ app.get('/sitemap.xml', async (req, res) => {
             xml += `    <url><loc>https://okuryazmaz.com/konu/${t.id}${slug}</loc><lastmod>${date}</lastmod><priority>0.9</priority></url>\n`;
         });
 
-        
         const dbBooks = await dbAllAsync("SELECT DISTINCT book_key, book_reference_title FROM topics WHERE book_key IS NOT NULL");
         let combinedBooks = [...app.locals.cachedPopularBooks];
         dbBooks.forEach(b => {
@@ -290,14 +286,12 @@ app.get('/sitemap.xml', async (req, res) => {
             xml += `    <url><loc>https://okuryazmaz.com/kitap/${escapeXml(book.key)}-${escapeXml(book.slug)}</loc><priority>0.7</priority></url>\n`;
         });
 
-        
         const authors = await dbAllAsync("SELECT DISTINCT book_author FROM quotes WHERE book_author IS NOT NULL AND book_author != ''");
         authors.forEach(a => {
             const authorSlug = slugify(a.book_author);
             xml += `    <url><loc>https://okuryazmaz.com/alintilar/yazar/${escapeXml(authorSlug)}</loc><priority>0.6</priority></url>\n`;
         });
 
-        
         cachedPopularAuthors.forEach(author => {
             const cleanKey = author.key.replace('/authors/', '');
             xml += `    <url><loc>https://okuryazmaz.com/yazar/${escapeXml(cleanKey)}-${escapeXml(author.slug)}</loc><priority>0.8</priority></url>\n`;
@@ -306,7 +300,7 @@ app.get('/sitemap.xml', async (req, res) => {
         xml += `</urlset>`;
         res.send(xml);
     } catch(e) {
-        console.error('[SEO] Sitemap oluşturma hatası:', e.message);
+        console.error(e.message);
         res.status(500).send('Sitemap oluşturulurken hata oluştu.');
     }
 });
@@ -316,43 +310,28 @@ app.get('/robots.txt', (req, res) => {
     res.send(`User-agent: *\nAllow: /\nSitemap: https://okuryazmaz.com/sitemap.xml\n`);
 });
 
-
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-
 function injectMetaTags(html, meta) {
     let newHtml = html;
-    
-    const safeTitle = escapeHtml(meta.title);
-    const safeDescription = escapeHtml(meta.description);
-    const safeImage = escapeHtml(meta.image);
-    const safeUrl = escapeHtml(meta.url);
-
     if (meta.title) {
+        const safeTitle = escapeHtml(meta.title);
         newHtml = newHtml.replace(/<title>.*?<\/title>/, `<title>${safeTitle}</title>`);
         newHtml = newHtml.replace(/<meta property="og:title" content=".*?">/, `<meta property="og:title" content="${safeTitle}">`);
         newHtml = newHtml.replace(/<meta name="twitter:title" content=".*?">/, `<meta name="twitter:title" content="${safeTitle}">`);
     }
     if (meta.description) {
-        newHtml = newHtml.replace(/<meta name="description" content=".*?">/, `<meta name="description" content="${safeDescription}">`);
-        newHtml = newHtml.replace(/<meta property="og:description" content=".*?">/, `<meta property="og:description" content="${safeDescription}">`);
-        newHtml = newHtml.replace(/<meta name="twitter:description" content=".*?">/, `<meta name="twitter:description" content="${safeDescription}">`);
+        const safeDesc = escapeHtml(meta.description);
+        newHtml = newHtml.replace(/<meta name="description" content=".*?">/, `<meta name="description" content="${safeDesc}">`);
+        newHtml = newHtml.replace(/<meta property="og:description" content=".*?">/, `<meta property="og:description" content="${safeDesc}">`);
+        newHtml = newHtml.replace(/<meta name="twitter:description" content=".*?">/, `<meta name="twitter:description" content="${safeDesc}">`);
     }
     if (meta.image) {
+        const safeImage = escapeHtml(meta.image);
         newHtml = newHtml.replace(/<meta property="og:image" content=".*?">/, `<meta property="og:image" content="${safeImage}">`);
         newHtml = newHtml.replace(/<meta name="twitter:image" content=".*?">/, `<meta name="twitter:image" content="${safeImage}">`);
     }
     if (meta.url) {
+        const safeUrl = escapeHtml(meta.url);
         newHtml = newHtml.replace(/<meta property="og:url" content=".*?">/, `<meta property="og:url" content="${safeUrl}">`);
-        
         if (newHtml.includes('rel="canonical"')) {
             newHtml = newHtml.replace(/<link rel="canonical" href=".*?">/, `<link rel="canonical" href="${safeUrl}">`);
         } else {
@@ -408,7 +387,7 @@ app.get('*', async (req, res) => {
                         "datePublished": new Date(topic.created_at + 'Z').toISOString()
                     };
                 }
-            } catch(e) { console.error('SSR Konu hatası:', e); }
+            } catch(e) { console.error(e); }
         }
     } else if (req.path.startsWith('/kitap/')) {
         const keyAndSlug = req.path.split('/')[2];
@@ -438,14 +417,13 @@ app.get('*', async (req, res) => {
                         "url": meta.url
                     };
                 }
-            } catch(e) { console.error('SSR Kitap hatası:', e.message); }
+            } catch(e) { console.error(e.message); }
         }
     } else if (req.path.startsWith('/yazar/')) {
         const keyAndSlug = decodeURIComponent(req.path.split('/')[2] || '');
         if (keyAndSlug) {
             try {
                 let authorKey = keyAndSlug.startsWith('OL') ? keyAndSlug.split('-')[0] : null;
-                
                 
                 if (!authorKey) {
                     const searchRes = await axios.get(`https://openlibrary.org/search/authors.json?q=${encodeURIComponent(keyAndSlug)}&limit=1`, { timeout: 8000 });
@@ -474,15 +452,14 @@ app.get('*', async (req, res) => {
                         };
                     }
                 }
-            } catch(e) { console.error('SSR Yazar hatası:', e.message); }
+            } catch(e) { console.error(e.message); }
         }
     } else if (req.path.startsWith('/alintilar/yazar/')) {
         const slug = req.path.split('/')[3];
-        const rawName = decodeURIComponent(slug).replace(/-/g, ' '); 
+        const rawName = decodeURIComponent(slug).replace(/-/g, ' ');
         meta.title = `${rawName} Alıntıları, Sözleri ve İncileri - Okuryazmaz`;
         meta.description = `${rawName} eserlerinden seçilmiş en güzel alıntılar, unutulmaz sözler ve edebi inciler.`;
     } else if (req.path.startsWith('/alintilar/kitap/')) {
-        const slug = req.path.split('/')[3];
         meta.title = `Kitap Alıntıları ve Sözleri - Okuryazmaz`;
         meta.description = `Bu kitaptan seçilmiş unutulmaz alıntılar ve sözler.`;
     }
@@ -490,21 +467,18 @@ app.get('*', async (req, res) => {
     res.send(injectMetaTags(html, meta));
 });
 
-
 app.use((err, req, res, next) => {
     if (err instanceof URIError) {
-        console.warn(`[WARN] Geçersiz URI isteği engellendi: ${req.url}`);
         return res.status(400).send('Geçersiz URI / Bad Request');
     }
-    console.error('[HATA] Sunucu içi beklenmeyen hata:', err);
+    console.error(err);
     res.status(500).send('Sunucu içi bir hata oluştu.');
 });
 
 const botManager = require('./ai/botManager');
 
-
 app.listen(PORT, async () => {
-    console.log(` Okuryazmaz Forum sunucusu başarıyla başlatıldı! -> http://localhost:${PORT}`);
+    console.log(`Okuryazmaz sunucusu baslatildi -> http://localhost:${PORT}`);
     await botManager.initializeAIBots();
     botManager.startAutonomousLoop();
 });

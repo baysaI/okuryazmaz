@@ -1,17 +1,15 @@
 const express = require('express');
-const router = express.Router();
+const router = Router = express.Router();
 const db = require('../database/db');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const botManager = require('../ai/botManager');
 
-
 if (!process.env.JWT_SECRET) {
     throw new Error('FATAL ERROR: JWT_SECRET environment variable is not defined.');
 }
 const SECRET_KEY = process.env.JWT_SECRET;
-
 
 function requireAdmin(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -20,7 +18,6 @@ function requireAdmin(req, res, next) {
     const token = authHeader.split(' ')[1];
     jwt.verify(token, SECRET_KEY, (err, decoded) => {
         if (err || !decoded) return res.status(403).json({ error: 'Bu alana sadece kütüphane yöneticileri girebilir.' });
-        
         
         db.get('SELECT is_admin, is_banned FROM users WHERE id = ?', [decoded.id], (dbErr, user) => {
             if (dbErr || !user || !user.is_admin || user.is_banned) {
@@ -35,7 +32,7 @@ function requireAdmin(req, res, next) {
 router.get('/bots', requireAdmin, (req, res) => {
     db.all('SELECT id, username, email, avatar_url, created_at FROM users WHERE is_ai = 1 ORDER BY id DESC', [], (err, rows) => {
         if (err) {
-            console.error('[ADMIN BOTS ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Bot listesi getirilemedi.' });
         }
         res.json(rows);
@@ -47,7 +44,6 @@ router.post('/bots', requireAdmin, async (req, res) => {
     if (!username || !email) return res.status(400).json({ error: 'Kullanıcı adı ve email zorunludur.' });
     
     try {
-        
         const randomPassword = crypto.randomUUID();
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
         const finalAvatar = avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${username}&backgroundColor=1A1A1A&textColor=D4AF37&bold=true`;
@@ -55,7 +51,7 @@ router.post('/bots', requireAdmin, async (req, res) => {
         const stmt = db.prepare('INSERT INTO users (username, email, password, avatar_url, is_ai) VALUES (?, ?, ?, ?, 1)');
         stmt.run([username, email, hashedPassword, finalAvatar], function(err) {
             if (err) {
-                console.error('[ADMIN BOTS ADD ERROR]', err);
+                console.error(err);
                 return res.status(500).json({ error: 'AI Persona eklenirken veritabanı hatası oluştu.' });
             }
             res.json({ message: 'Yeni AI Persona eklendi.', id: this.lastID });
@@ -80,13 +76,12 @@ router.put('/topics/:id', requireAdmin, (req, res) => {
     db.get("SELECT content FROM topics WHERE id = ?", [req.params.id], (err, topic) => {
         if (err || !topic) return res.status(404).json({ error: 'Konu bulunamadı.' });
 
-        
         db.run("INSERT INTO edit_history (target_type, target_id, old_content) VALUES (?, ?, ?)",
             ['topic', req.params.id, topic.content]);
 
         db.run('UPDATE topics SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [title, content, req.params.id], function(err) {
             if (err) {
-                console.error('[ADMIN TOPICS EDIT ERROR]', err);
+                console.error(err);
                 return res.status(500).json({ error: 'Konu güncellenirken veritabanı hatası oluştu.' });
             }
             res.json({ message: 'Konu başarıyla düzenlendi ve tarihçeye kazındı.' });
@@ -97,7 +92,7 @@ router.put('/topics/:id', requireAdmin, (req, res) => {
 router.delete('/topics/:id', requireAdmin, (req, res) => {
     db.run('DELETE FROM topics WHERE id = ?', [req.params.id], function(err) {
         if (err) {
-            console.error('[ADMIN TOPICS DELETE ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Konu silinirken veritabanı hatası oluştu.' });
         }
         res.json({ message: 'Konu kütüphaneden silindi.' });
@@ -108,7 +103,7 @@ router.put('/topics/:id/hide', requireAdmin, (req, res) => {
     const { is_hidden } = req.body;
     db.run('UPDATE topics SET is_hidden = ? WHERE id = ?', [is_hidden ? 1 : 0, req.params.id], function(err) {
         if (err) {
-            console.error('[ADMIN TOPICS HIDE ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Konu gizleme/gösterme işlemi başarısız oldu.' });
         }
         res.json({ message: is_hidden ? 'Konu raflardan gizlendi.' : 'Konu tekrar görünür yapıldı.' });
@@ -141,7 +136,7 @@ router.put('/users/:username/profile', requireAdmin, async (req, res) => {
         
         db.run(updateQuery, params, function(err) {
             if (err) {
-                console.error('[ADMIN PROFILE EDIT ERROR]', err);
+                console.error(err);
                 return res.status(500).json({ error: 'Kullanıcı profili güncellenirken hata oluştu.' });
             }
             res.json({ message: 'Kullanıcı kaydı admin yetkisiyle başarıyla mühürlendi.', new_username: new_username || req.params.username });
@@ -154,7 +149,7 @@ router.put('/users/:username/profile', requireAdmin, async (req, res) => {
 router.delete('/posts/:id', requireAdmin, (req, res) => {
     db.run('DELETE FROM posts WHERE id = ?', [req.params.id], function(err) {
         if (err) {
-            console.error('[ADMIN POST DELETE ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Yorum silinirken veritabanı hatası oluştu.' });
         }
         res.json({ message: 'İleti kütüphaneden silindi.' });
@@ -164,7 +159,7 @@ router.delete('/posts/:id', requireAdmin, (req, res) => {
 router.get('/users', requireAdmin, (req, res) => {
     db.all('SELECT id, username, email, avatar_url, created_at, is_ai FROM users ORDER BY created_at DESC', [], (err, rows) => {
         if (err) {
-            console.error('[ADMIN USERS LIST ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Yazar listesi getirilemedi.' });
         }
         res.json(rows);
@@ -177,7 +172,7 @@ router.get('/reports', requireAdmin, (req, res) => {
             LEFT JOIN users u ON r.reporter_id = u.id 
             ORDER BY r.created_at DESC`, [], (err, rows) => {
         if (err) {
-            console.error('[ADMIN REPORTS LIST ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Şikayet listesi listelenemedi.' });
         }
         res.json(rows);
@@ -190,7 +185,7 @@ router.put('/reports/:id/resolve', requireAdmin, (req, res) => {
 
         db.run("UPDATE reports SET status = 'resolved' WHERE id = ?", [req.params.id], (err) => {
             if (err) {
-                console.error('[ADMIN REPORTS RESOLVE ERROR]', err);
+                console.error(err);
                 return res.status(500).json({ error: 'Rapor çözümlenirken veritabanı hatası oluştu.' });
             }
 
@@ -213,7 +208,7 @@ router.put('/posts/:id', requireAdmin, (req, res) => {
         db.run("UPDATE posts SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             [content, req.params.id], function(err) {
                 if (err) {
-                    console.error('[ADMIN POSTS EDIT ERROR]', err);
+                    console.error(err);
                     return res.status(500).json({ error: 'Yorum güncellenirken veritabanı hatası oluştu.' });
                 }
                 res.json({ message: 'İleti yönetici tarafından düzenlendi.' });
@@ -224,13 +219,12 @@ router.put('/posts/:id', requireAdmin, (req, res) => {
 router.get('/posts/:id/history', requireAdmin, (req, res) => {
     db.all("SELECT * FROM edit_history WHERE target_type = 'post' AND target_id = ? ORDER BY edited_at DESC", [req.params.id], (err, rows) => {
         if (err) {
-            console.error('[ADMIN POST HISTORY ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Yorum geçmişi getirilemedi.' });
         }
         res.json(rows);
     });
 });
-
 
 router.get('/bot-activity', requireAdmin, (req, res) => {
     const query = `
@@ -255,7 +249,7 @@ router.get('/bot-activity', requireAdmin, (req, res) => {
     `;
     db.all(query, [], (err, rows) => {
         if (err) {
-            console.error('[ADMIN BOT ACTIVITY ERROR]', err);
+            console.error(err);
             return res.status(500).json({ error: 'Bot aktivite geçmişi listelenemedi.' });
         }
         res.json(rows);

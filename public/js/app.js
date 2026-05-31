@@ -74,16 +74,6 @@ const app = {
         }
     },
 
-    escapeHtml: (str) => {
-        if (str === null || str === undefined) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    },
-
     slugify: (text) => {
         if (!text) return '';
         const trMap = { 'çÇ': 'c', 'ğĞ': 'g', 'şŞ': 's', 'üÜ': 'u', 'ıİ': 'i', 'öÖ': 'o' };
@@ -96,6 +86,15 @@ const app = {
             .replace(/\-\-+/g, '-')
             .replace(/^-+/, '')
             .replace(/-+$/, '');
+    },
+    escapeHtml: (str) => {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     },
 
     
@@ -118,7 +117,7 @@ const app = {
             .replace(/[çÇ]/g, 'c').replace(/[şŞ]/g, 's').replace(/[ğĞ]/g, 'g')
             .replace(/[^a-z0-9]/g, '');
         
-        
+        // Tekilleştir, en çok baskısı olanı tut, sırayı koru (title sonuçları önce)
         const seen = new Map();
         allDocs.forEach(book => {
             const author = book.author_name ? book.author_name[0] : '';
@@ -131,7 +130,7 @@ const app = {
         
         const results = Array.from(seen.values()).slice(0, limit);
         
-        
+        // Sadece yabancı dildeki başlıkları Türkçeye çevir (Türkçe karakterler varsa zaten Türkçe)
         const hasTurkish = (t) => /[çÇğĞıİöÖşŞüÜ]/.test(t);
         const toTranslate = [];
         const translateIndices = [];
@@ -174,7 +173,7 @@ const app = {
             return translated;
         } catch (e) {
             console.error('Çeviri hatası:', e);
-            return text; 
+            return text; // Hata olursa orijinal metni döndür
         }
     },
 
@@ -475,7 +474,7 @@ const app = {
                     delay += 1800;
                     setTimeout(() => {
                         intro.classList.add('zoom-out');
-                        
+                        // Store current timestamp so intro won't replay for 12 hours
                         localStorage.setItem('okuryazmaz_intro_seen', Date.now().toString());
                         setTimeout(() => {
                             intro.remove();
@@ -515,7 +514,7 @@ const app = {
         const cat = app.state.categories.find(c => c.id == categoryId);
         const categoryName = cat ? cat.title : 'Kategori';
 
-        
+        // URL'yi tam ve SEO uyumlu slug ile güncelle
         if (cat) window.history.replaceState({}, '', `/kategori/${categoryId}-${app.slugify(cat.title)}`);
 
         document.getElementById('cat-title-display').innerHTML = `<i class="fa-solid fa-bookmark" style="font-size:0.8em"></i> ${categoryName}`;
@@ -640,10 +639,10 @@ const app = {
                 return;
             }
             container.innerHTML = data.map(t => {
+                const ava = t.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${t.username}&backgroundColor=1E1C1A&textColor=C5A059`;
                 const safeUsername = app.escapeHtml(t.username);
                 const safeTitle = app.escapeHtml(t.title);
-                const ava = t.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${safeUsername}&backgroundColor=1E1C1A&textColor=C5A059`;
-                const contentSnippet = app.escapeHtml(t.content.substring(0, 85)) + '...';
+                const contentSnippet = app.escapeHtml(t.content.replace(/<[^>]*>?/gm, '').substring(0, 85)) + '...';
                 const replyCount = t.reply_count || 0;
                 return `
                 <div class="topic-row" onclick="app.loadTopicDetail(${t.id}, '${safeTitle.replace(/'/g, "\\'")}')">
@@ -680,6 +679,14 @@ const app = {
         try {
             const { topic, posts } = await app.apiCall(`/forum/topics/${topicId}`);
 
+            // Konu yüklendiğinde URL'yi tam slug ile güncelle
+            window.history.replaceState({}, '', `/konu/${topicId}-${app.slugify(topic.title)}`);
+
+            app.state.loadedTopic = topic;
+            app.state.loadedPosts = posts;
+
+            const tAva = topic.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${topic.username}&backgroundColor=2A2826&textColor=D4AF37`;
+
             const safeTopicTitle = app.escapeHtml(topic.title);
             const safeTopicUsername = app.escapeHtml(topic.username);
             const safeBookTitle = app.escapeHtml(topic.book_reference_title);
@@ -687,16 +694,8 @@ const app = {
             const safeBookPages = app.escapeHtml(topic.book_pages);
             const safeBookPublishDate = app.escapeHtml(topic.book_publish_date);
 
-            
-            window.history.replaceState({}, '', `/konu/${topicId}-${app.slugify(topic.title)}`);
-
-            app.state.loadedTopic = topic;
-            app.state.loadedPosts = posts;
-
-            const tAva = topic.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${safeTopicUsername}&backgroundColor=2A2826&textColor=D4AF37`;
-
             let parsedContent = app.escapeHtml(topic.content).replace(/\n/g, '<br>').replace(/\\n/g, '<br>');
-            parsedContent = parsedContent.replace(/"([^"]*)"/g, '<blockquote>"$1"</blockquote>');
+            parsedContent = parsedContent.replace(/&quot;([^&quot;]*)&quot;/g, '<blockquote>"$1"</blockquote>');
 
             document.getElementById('topic-main-content').innerHTML = `
                 <h2>${topic.is_hidden ? '<span style="color:#777; font-size:0.8em;">[GİZLİ]</span> ' : ''}${safeTopicTitle}</h2>
@@ -725,17 +724,17 @@ const app = {
                     <div class="book-info">
                         <h4>${safeBookTitle}</h4>
                         <p>Yazar: <strong>${safeBookAuthor || 'Bilinmiyor'}</strong></p>
-                        ${topic.book_pages && topic.book_pages !== '-' ? `<p>Sayfa: <strong>${safeBookPages}</strong></p>` : ''}
-                        ${topic.book_publish_date && topic.book_publish_date !== '-' ? `<p>İlk Çıkış: <strong>${safeBookPublishDate}</strong></p>` : ''}
+                        ${safeBookPages && safeBookPages !== '-' ? `<p>Sayfa: <strong>${safeBookPages}</strong></p>` : ''}
+                        ${safeBookPublishDate && safeBookPublishDate !== '-' ? `<p>İlk Çıkış: <strong>${safeBookPublishDate}</strong></p>` : ''}
                     </div>
                 </div>`;
             }
 
             const postsHtml = posts.map(p => {
+                const pAva = p.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${p.username}&backgroundColor=2A2826&textColor=D4AF37`;
                 const safePostUsername = app.escapeHtml(p.username);
-                const pAva = p.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${safePostUsername}&backgroundColor=2A2826&textColor=D4AF37`;
                 let pContent = app.escapeHtml(p.content).replace(/\n/g, '<br>').replace(/\\n/g, '<br>');
-                pContent = pContent.replace(/"([^"]*)"/g, '<blockquote>"$1"</blockquote>');
+                pContent = pContent.replace(/&quot;([^&quot;]*)&quot;/g, '<blockquote>"$1"</blockquote>');
                 return `
                 <div class="post-card">
                     <img src="${pAva}" class="avatar-sm" style="width: 45px; height: 45px; cursor:pointer;" alt="avatar" onclick="app.showProfile('${safePostUsername}')">
@@ -1016,7 +1015,7 @@ const app = {
                 `).join('');
             }
 
-            
+            // ===== ROZETLER =====
             const badgesSection = document.getElementById('profile-badges-section');
             const badgesContainer = document.getElementById('badges-container');
             if (data.badges && data.badges.length > 0) {
@@ -1093,7 +1092,7 @@ const app = {
                 favBooksContainer.innerHTML = `<p style="color:var(--text-secondary); font-size:0.9rem; grid-column:1/-1;">${isOwnProfile ? 'Henüz favori kitap eklemediniz.' : 'Favori kitap yok.'}</p>`;
             }
 
-            
+            // ===== FAVORİ YAZARLAR =====
             const favAuthorsSection = document.getElementById('profile-fav-authors-section');
             const favAuthorsContainer = document.getElementById('fav-authors-container');
 
@@ -1228,13 +1227,13 @@ const app = {
                     localStorage.setItem('okuryazmaz_user', JSON.stringify(app.state.user));
                 }
 
-                
+                // Navbar'daki avatarı anında güncelle
                 app.renderAuthSection();
 
                 app.toast('Profil fotoğrafınız yenilendi.');
                 app.closeModal('edit-avatar-modal');
                 await app.showProfile(u);
-                
+                // Profil yüklendikten sonra navbar'ı bir kez daha güncelle (sunucu verisiyle senkron)
                 app.renderAuthSection();
             } catch (err) { app.toast(err.message); }
         };
@@ -1437,7 +1436,7 @@ const app = {
             container.innerHTML = users.map(u => `
                 <tr style="border-bottom:1px solid var(--glass-border);">
                     <td style="padding:10px;">${u.id}</td>
-                    <td style="padding:10px; cursor:pointer;" onclick="app.showProfile('${u.username}')"><img src="${u.avatar_url || `https:
+                    <td style="padding:10px; cursor:pointer;" onclick="app.showProfile('${u.username}')"><img src="${u.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${u.username}&backgroundColor=2A2826&textColor=D4AF37`}" style="width:30px; border-radius:50%;"></td>
                     <td style="padding:10px; cursor:pointer; color:var(--accent-gold);" onclick="app.showProfile('${u.username}')">${u.username}</td>
                     <td style="padding:10px; color:var(--text-secondary);">${u.email}</td>
                     <td style="padding:10px; color:var(--text-secondary);">${new Date(u.created_at + "Z").toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}</td>
@@ -1628,7 +1627,7 @@ const app = {
         } catch (e) { app.toast(e.message); }
     },
 
-    // ===== ANA SAYFA İÇERİK YÜKLEME =====
+    
     async loadHomepageContent() {
         app.loadHomeBooks();
         app.loadRecentTopics();
@@ -1645,8 +1644,8 @@ const app = {
             const books = res || [];
 
             if (books.length > 0) {
-                // Mobilde ve tablette (<=1024px) 6 kitap (2 veya 3 sütuna tam bölünür),
-                // PC ekranlarında ise 3'lü ya da 4'lü sütunların hiçbirinde boşluk kalmaması için 12 kitap gösterilir.
+                
+                
                 const limit = window.innerWidth <= 1024 ? 6 : 12;
                 container.innerHTML = books.slice(0, limit).map(book => {
                     const coverId = book.cover_id;
@@ -1694,7 +1693,7 @@ const app = {
                 return;
             }
             container.innerHTML = topics.map(t => {
-                const ava = t.avatar_url || `https:
+                const ava = t.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${t.username}&backgroundColor=1E1C1A&textColor=C5A059`;
                 const replyCount = t.reply_count || 0;
                 const timeAgo = app.timeAgo(t.created_at);
                 return `
@@ -1819,7 +1818,7 @@ const app = {
         }
     },
 
-    
+    // ===== MOBİL MENÜ =====
     toggleMobileMenu() {
         const sidebar = document.getElementById('main-sidebar');
         const overlay = document.getElementById('sidebar-overlay');
@@ -1845,7 +1844,7 @@ const app = {
             }
             let subjects = (book.subjects || []).slice(0, 4).join(', ');
 
-            
+            // Çeviri İsteği
             try {
                 const transRes = await fetch('/api/forum/translate-book', {
                     method: 'POST',
@@ -1879,7 +1878,7 @@ const app = {
                 ? `<div class="book-detail-desc">${description.substring(0, 600)}${description.length > 600 ? '...' : ''}</div>`
                 : '';
 
-            
+            // Meta bilgiler
             const publishDate = book.first_publish_date || book.publish_date || '-';
             const pages = book.number_of_pages || '-';
 
@@ -1908,7 +1907,7 @@ const app = {
         }
     },
 
-    
+    // ===== FAVORİ SİSTEMİ =====
     _favSearchType: 'book',
     _favSearchTimer: null,
 
@@ -2315,7 +2314,7 @@ const app = {
         } catch(e) {
             dropdown.innerHTML = '<div style="padding:15px; text-align:center; color:#e74c3c;">Arama sırasında büyü bozuldu.</div>';
         }
-        }, 600); 
+        }, 600); // 600ms debounce
     },
 
     async loadQuotesFeed() {
@@ -2352,17 +2351,17 @@ const app = {
         }
 
         quotes.forEach(q => {
+            const safeContent = app.escapeHtml(q.content);
+            const safeBookTitle = app.escapeHtml(q.book_title);
+            const safeUsername = app.escapeHtml(q.username);
+            const safeAuthorName = app.escapeHtml(authorName);
+
             const isLiked = q.is_liked > 0;
             const likeColor = isLiked ? '#e74c3c' : 'var(--text-secondary)';
             const ava = q.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${q.username}`;
             const bookKey = q.book_key ? q.book_key.replace('/works/', '') : '';
             const bookSlug = bookKey ? bookKey + '-' + app.slugify(q.book_title) : '';
             const coverUrl = q.book_cover_url || '';
-            const authorName = q.book_author || '';
-            const safeContent = app.escapeHtml(q.content);
-            const safeBookTitle = app.escapeHtml(q.book_title);
-            const safeUsername = app.escapeHtml(q.username);
-            const safeAuthorName = app.escapeHtml(authorName);
             const isAdmin = app.state.user && app.state.user.is_admin;
             const authorLink = authorName ? `<span onclick="app.handleRoute('/yazar/${encodeURIComponent(authorName)}')" style="color:var(--text-secondary); text-decoration:none; font-size:0.9rem; border-bottom:1px solid transparent; transition:border-bottom 0.2s; cursor:pointer;" onmouseover="this.style.borderBottom='1px solid var(--text-secondary)';" onmouseout="this.style.borderBottom='1px solid transparent';">— ${safeAuthorName}</span>` : '';
 
@@ -2521,7 +2520,7 @@ const app = {
             const death = author.death_date ? author.death_date : '';
             const dateStr = death ? `(${birth} - ${death})` : `(d. ${birth})`;
             
-            
+            // Çeviri İsteği
             try {
                 const transRes = await fetch('/api/forum/translate-book', {
                     method: 'POST',
@@ -2536,12 +2535,12 @@ const app = {
             
             document.title = `${name} - Hayatı, Eserleri ve Alıntıları | Okuryazmaz`;
 
-            
+            // Kapak/Foto
             const photoHtml = author.photos && author.photos.length > 0 
                 ? `<img src="https://covers.openlibrary.org/a/id/${author.photos[0]}-L.jpg" style="width:180px; height:180px; border-radius:50%; object-fit:cover; border:3px solid var(--accent-gold); box-shadow:0 10px 30px rgba(0,0,0,0.5); margin-bottom:20px;">`
                 : `<div style="width:150px; height:150px; border-radius:50%; background:var(--bg-card); border:2px solid var(--glass-border); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; font-size:3rem; color:var(--text-secondary);"><i class="fa-solid fa-user-tie"></i></div>`;
 
-            
+            // Html oluştur
             container.innerHTML = `
                 <div style="max-width:900px; margin:0 auto;">
                     ${photoHtml}
@@ -2578,14 +2577,14 @@ const app = {
                 </div>
             `;
             
-            
+            // Yazarın alıntılarını çek
             try {
                 const uid = app.state.user ? app.state.user.id : 0;
                 const quotes = await app.apiCall(`/forum/quotes/by-author/${encodeURIComponent(name)}?uid=${uid}`);
                 const qContainer = document.getElementById('dynamic-author-quotes');
                 qContainer.innerHTML = '';
                 if(quotes.length > 0) {
-                    app.renderQuotes(quotes.slice(0, 3), qContainer); 
+                    app.renderQuotes(quotes.slice(0, 3), qContainer); // ilk 3'ü göster
                 } else {
                     qContainer.innerHTML = '<p style="color:var(--text-secondary); text-align:center; padding:1rem; border:1px dashed var(--glass-border); border-radius:8px;">Kütüphanemizde bu yazara ait alıntı bulunmuyor.</p>';
                 }
@@ -2593,7 +2592,7 @@ const app = {
                 document.getElementById('dynamic-author-quotes').innerHTML = '<p style="color:#e74c3c;">Alıntılar yüklenirken hata oluştu.</p>';
             }
             
-            
+            // Yazarın eserlerini çek
             app._loadAuthorWorks(authorKey);
 
         } catch(e) {

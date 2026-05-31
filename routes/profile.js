@@ -4,7 +4,6 @@ const db = require('../database/db');
 const jwt = require('jsonwebtoken');
 const { adminGrantBadge, adminRevokeBadge, checkAndAwardBadges } = require('../utils/badges');
 
-
 if (!process.env.JWT_SECRET) {
     throw new Error('FATAL ERROR: JWT_SECRET environment variable is not defined.');
 }
@@ -23,33 +22,31 @@ function authenticate(req, res, next) {
     }
 }
 
-
 router.get('/badges/all', (req, res) => {
     db.all('SELECT * FROM badges ORDER BY category, id', [], (err, badges) => {
         if (err) {
-            console.error('[PROFILE BADGES GET ALL ERROR]', err);
-            return res.status(500).json({ error: 'Rozetler listelenemedi.' });
+            console.error(err);
+            return res.status(500).json({ error: 'Rozet listesi alınamadı.' });
         }
         res.json(badges || []);
     });
 });
 
-
 router.get('/:username', authenticate, (req, res) => {
     const { username } = req.params;
     db.get('SELECT id, username, avatar_url, about_me, created_at, is_banned, is_muted FROM users WHERE username = ?', [username], (err, profileUser) => {
-        if (err || !profileUser) return res.status(404).json({ error: 'Bu yazar henüz okuryazmaz platformuna uğramamış.' });
+        if (err || !profileUser) {
+            console.error(err);
+            return res.status(404).json({ error: 'Bu yazar henüz okuryazmaz platformuna uğramamış.' });
+        }
 
         db.all('SELECT * FROM topics WHERE user_id = ? ORDER BY created_at DESC', [profileUser.id], (err, topics) => {
             db.all('SELECT u.username, u.avatar_url FROM followers f JOIN users u ON f.follower_id = u.id WHERE f.following_id = ?', [profileUser.id], (err, followersList) => {
                 let isFollowing = false;
                 const followersCount = followersList ? followersList.length : 0;
 
-                
                 db.all('SELECT * FROM user_favorite_books WHERE user_id = ? ORDER BY added_at DESC', [profileUser.id], (err, favBooks) => {
-                    
                     db.all('SELECT * FROM user_favorite_authors WHERE user_id = ? ORDER BY added_at DESC', [profileUser.id], (err, favAuthors) => {
-                        
                         db.all(`SELECT b.code, b.name, b.description, b.icon, b.color, b.category, ub.earned_at 
                                 FROM user_badges ub JOIN badges b ON ub.badge_id = b.id 
                                 WHERE ub.user_id = ? ORDER BY ub.earned_at DESC`, [profileUser.id], (err, badges) => {
@@ -57,10 +54,10 @@ router.get('/:username', authenticate, (req, res) => {
                             const sendResponse = (isFollowing) => {
                                 res.json({
                                     user: profileUser,
-                                    topics: topics || [],
+                                    topics,
                                     followers: followersCount,
                                     isFollowing,
-                                    followersList: followersList || [],
+                                    followersList,
                                     favoriteBooks: favBooks || [],
                                     favoriteAuthors: favAuthors || [],
                                     badges: badges || []
@@ -82,28 +79,25 @@ router.get('/:username', authenticate, (req, res) => {
     });
 });
 
-
 router.put('/edit', authenticate, (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Önce giriş yapın.' });
     const { about_me, avatar_url } = req.body;
-
     
     if (about_me && about_me.length > 500) {
-        return res.status(400).json({ error: 'Hakkımda yazısı en fazla 500 karakter olabilir.' });
+        return res.status(400).json({ error: 'Biyografi en fazla 500 karakter olabilir.' });
     }
     if (avatar_url && avatar_url.length > 2 * 1024 * 1024) {
-        return res.status(400).json({ error: 'Avatar görsel boyutu çok büyük (Maksimum 2MB).' });
+        return res.status(400).json({ error: 'Profil resmi en fazla 2MB boyutunda olabilir.' });
     }
 
     db.run('UPDATE users SET about_me = ?, avatar_url = ? WHERE id = ?', [about_me, avatar_url, req.user.id], function (err) {
         if (err) {
-            console.error('[PROFILE EDIT ERROR]', err);
-            return res.status(500).json({ error: 'Profil güncellenirken hata oluştu.' });
+            console.error(err);
+            return res.status(500).json({ error: 'Güncellenirken hata oluştu.' });
         }
         res.json({ message: 'Biyografiniz başarıyla mühürlendi.' });
     });
 });
-
 
 router.post('/favorites/book', authenticate, (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Giriş yapın.' });
@@ -115,8 +109,8 @@ router.post('/favorites/book', authenticate, (req, res) => {
         db.run('INSERT INTO user_favorite_books (user_id, book_title, book_author, book_cover_url, book_key) VALUES (?, ?, ?, ?, ?)',
             [req.user.id, book_title, book_author, book_cover_url, book_key], function(err) {
                 if (err) {
-                    console.error('[PROFILE BOOK ADD FAVORITE ERROR]', err);
-                    return res.status(500).json({ error: 'Favori kitap eklenirken hata oluştu.' });
+                    console.error(err);
+                    return res.status(500).json({ error: 'Favori kitap eklenirken veritabanı hatası oluştu.' });
                 }
                 checkAndAwardBadges(req.user.id);
                 res.json({ id: this.lastID, message: 'Favori kitap eklendi.' });
@@ -128,13 +122,12 @@ router.delete('/favorites/book/:id', authenticate, (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Giriş yapın.' });
     db.run('DELETE FROM user_favorite_books WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], function(err) {
         if (err) {
-            console.error('[PROFILE BOOK DELETE FAVORITE ERROR]', err);
-            return res.status(500).json({ error: 'Favori kitap silinemedi.' });
+            console.error(err);
+            return res.status(500).json({ error: 'Favori kitap silinirken veritabanı hatası oluştu.' });
         }
         res.json({ message: 'Favori kitap silindi.' });
     });
 });
-
 
 router.post('/favorites/author', authenticate, (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Giriş yapın.' });
@@ -146,8 +139,8 @@ router.post('/favorites/author', authenticate, (req, res) => {
         db.run('INSERT INTO user_favorite_authors (user_id, author_name, author_photo_url, author_key) VALUES (?, ?, ?, ?)',
             [req.user.id, author_name, author_photo_url, author_key], function(err) {
                 if (err) {
-                    console.error('[PROFILE AUTHOR ADD FAVORITE ERROR]', err);
-                    return res.status(500).json({ error: 'Favori yazar eklenirken hata oluştu.' });
+                    console.error(err);
+                    return res.status(500).json({ error: 'Favori yazar eklenirken veritabanı hatası oluştu.' });
                 }
                 checkAndAwardBadges(req.user.id);
                 res.json({ id: this.lastID, message: 'Favori yazar eklendi.' });
@@ -159,13 +152,12 @@ router.delete('/favorites/author/:id', authenticate, (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Giriş yapın.' });
     db.run('DELETE FROM user_favorite_authors WHERE id = ? AND user_id = ?', [req.params.id, req.user.id], function(err) {
         if (err) {
-            console.error('[PROFILE AUTHOR DELETE FAVORITE ERROR]', err);
-            return res.status(500).json({ error: 'Favori yazar silinemedi.' });
+            console.error(err);
+            return res.status(500).json({ error: 'Favori yazar silinirken veritabanı hatası oluştu.' });
         }
         res.json({ message: 'Favori yazar silindi.' });
     });
 });
-
 
 router.post('/:id/follow', authenticate, (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Takip etmek için önce edebiyat kulübüne katılmalısınız.' });
@@ -179,7 +171,10 @@ router.post('/:id/follow', authenticate, (req, res) => {
             db.run('DELETE FROM followers WHERE follower_id = ? AND following_id = ?', [follower_id, following_id], () => res.json({ status: 'unfollowed' }));
         } else {
             db.run('INSERT INTO followers (follower_id, following_id) VALUES (?, ?)', [follower_id, following_id], function (err) {
-                if (err) return res.status(500).json({ error: 'Takip edilemedi.' });
+                if (err) {
+                    console.error(err);
+                    return res.status(500).json({ error: 'Takip edilemedi.' });
+                }
                 
                 checkAndAwardBadges(following_id);
                 
@@ -192,7 +187,6 @@ router.post('/:id/follow', authenticate, (req, res) => {
     });
 });
 
-
 router.post('/admin/badge/grant', authenticate, async (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Giriş yapın.' });
     db.get('SELECT is_admin FROM users WHERE id = ?', [req.user.id], async (err, u) => {
@@ -200,7 +194,10 @@ router.post('/admin/badge/grant', authenticate, async (req, res) => {
         try {
             const result = await adminGrantBadge(req.body.user_id, req.body.badge_code);
             res.json(result);
-        } catch(e) { res.status(400).json({ error: e.message }); }
+        } catch(e) {
+            console.error(e);
+            res.status(400).json({ error: 'Rozet verilirken hata oluştu.' });
+        }
     });
 });
 
@@ -211,12 +208,12 @@ router.post('/admin/badge/revoke', authenticate, async (req, res) => {
         try {
             const result = await adminRevokeBadge(req.body.user_id, req.body.badge_code);
             res.json(result);
-        } catch(e) { res.status(400).json({ error: e.message }); }
+        } catch(e) {
+            console.error(e);
+            res.status(400).json({ error: 'Rozet geri alınırken hata oluştu.' });
+        }
     });
 });
-
-
-
 
 router.post('/admin/ban', authenticate, (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Giriş yapın.' });
@@ -229,8 +226,8 @@ router.post('/admin/ban', authenticate, (req, res) => {
             if (target.is_admin) return res.status(400).json({ error: 'Başka bir yöneticiyi yasaklayamazsınız.' });
             db.run('UPDATE users SET is_banned = 1, ban_reason = ? WHERE id = ?', [reason || 'Belirtilmemiş', user_id], (err) => {
                 if (err) {
-                    console.error('[ADMIN BAN ERROR]', err);
-                    return res.status(500).json({ error: 'Kullanıcı yasaklanırken veritabanı hatası oluştu.' });
+                    console.error(err);
+                    return res.status(500).json({ error: 'Yasaklama işlemi başarısız.' });
                 }
                 res.json({ message: 'Kullanıcı yasaklandı.' });
             });
@@ -238,21 +235,19 @@ router.post('/admin/ban', authenticate, (req, res) => {
     });
 });
 
-
 router.post('/admin/unban', authenticate, (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Giriş yapın.' });
     db.get('SELECT is_admin FROM users WHERE id = ?', [req.user.id], (err, admin) => {
         if (!admin || !admin.is_admin) return res.status(403).json({ error: 'Yetkisiz.' });
         db.run('UPDATE users SET is_banned = 0, ban_reason = NULL WHERE id = ?', [req.body.user_id], (err) => {
             if (err) {
-                console.error('[ADMIN UNBAN ERROR]', err);
-                return res.status(500).json({ error: 'Yasak kaldırılırken veritabanı hatası oluştu.' });
+                console.error(err);
+                return res.status(500).json({ error: 'Yasağı kaldırma işlemi başarısız.' });
             }
             res.json({ message: 'Kullanıcının yasağı kaldırıldı.' });
         });
     });
 });
-
 
 router.post('/admin/mute', authenticate, (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Giriş yapın.' });
@@ -264,14 +259,13 @@ router.post('/admin/mute', authenticate, (req, res) => {
         const mutedUntil = new Date(Date.now() + minutes * 60000).toISOString();
         db.run('UPDATE users SET is_muted = 1, muted_until = ? WHERE id = ?', [mutedUntil, user_id], (err) => {
             if (err) {
-                console.error('[ADMIN MUTE ERROR]', err);
-                return res.status(500).json({ error: 'Kullanıcı susturulurken veritabanı hatası oluştu.' });
+                console.error(err);
+                return res.status(500).json({ error: 'Susturma işlemi başarısız.' });
             }
             res.json({ message: `Kullanıcı ${minutes} dakika susturuldu.` });
         });
     });
 });
-
 
 router.post('/admin/unmute', authenticate, (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Giriş yapın.' });
@@ -279,14 +273,13 @@ router.post('/admin/unmute', authenticate, (req, res) => {
         if (!admin || !admin.is_admin) return res.status(403).json({ error: 'Yetkisiz.' });
         db.run('UPDATE users SET is_muted = 0, muted_until = NULL WHERE id = ?', [req.body.user_id], (err) => {
             if (err) {
-                console.error('[ADMIN UNMUTE ERROR]', err);
-                return res.status(500).json({ error: 'Susturma kaldırılırken veritabanı hatası oluştu.' });
+                console.error(err);
+                return res.status(500).json({ error: 'Susturmayı kaldırma işlemi başarısız.' });
             }
             res.json({ message: 'Kullanıcının susturması kaldırıldı.' });
         });
     });
 });
-
 
 router.post('/admin/delete-user', authenticate, (req, res) => {
     if (!req.user) return res.status(401).json({ error: 'Giriş yapın.' });
@@ -297,7 +290,6 @@ router.post('/admin/delete-user', authenticate, (req, res) => {
         db.get('SELECT is_admin, username FROM users WHERE id = ?', [user_id], (err, target) => {
             if (!target) return res.status(404).json({ error: 'Kullanıcı bulunamadı.' });
             if (target.is_admin) return res.status(400).json({ error: 'Başka bir yöneticiyi silemezsiniz.' });
-            
             db.serialize(() => {
                 db.run('DELETE FROM posts WHERE user_id = ?', [user_id]);
                 db.run('DELETE FROM topics WHERE user_id = ?', [user_id]);
@@ -308,8 +300,8 @@ router.post('/admin/delete-user', authenticate, (req, res) => {
                 db.run('DELETE FROM user_favorite_authors WHERE user_id = ?', [user_id]);
                 db.run('DELETE FROM users WHERE id = ?', [user_id], (err) => {
                     if (err) {
-                        console.error('[ADMIN DELETE USER ERROR]', err);
-                        return res.status(500).json({ error: 'Kullanıcı silinirken veritabanı hatası oluştu.' });
+                        console.error(err);
+                        return res.status(500).json({ error: 'Kullanıcı silinemedi.' });
                     }
                     res.json({ message: `${target.username} hesabı ve tüm verileri silindi.` });
                 });
