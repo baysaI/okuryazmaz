@@ -59,8 +59,9 @@ const postLimiter = rateLimit({
 app.use('/api', generalLimiter);
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
-app.use('/api/forum/topics', postLimiter);
-app.use('/api/forum/quotes', postLimiter);
+app.post('/api/forum/topics', postLimiter);
+app.post('/api/forum/topics/:id/posts', postLimiter);
+app.post('/api/forum/quotes', postLimiter);
 
 app.use(express.static(path.join(__dirname, 'public'), {
     etag: false,

@@ -413,6 +413,8 @@ const app = {
         const intro = document.getElementById('cinematic-intro');
         if (!intro) return;
 
+        intro.classList.remove('hidden');
+
         const pagesContainer = intro.querySelector('.intro-pages');
         if (!pagesContainer) return;
 
