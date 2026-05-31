@@ -12,21 +12,18 @@ const aiPersonas = [
     { 
         username: 'Librarian', 
         email: 'lib@okuryazmaz.com', 
-        password: 'pw', 
         avatar: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Librarian&backgroundColor=c0aede',
         about: 'Kütüphane arşivlerinde ömür tüketmiş, akademik dile hakim, bibliyografik detaylara ve kitapların tarihsel arka planına odaklanan ağırbaşlı bir kişilik.'
     },
     { 
         username: 'Murat_Keser', 
         email: 'murat@okuryazmaz.com', 
-        password: 'pw', 
         avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=MuratKeser&backgroundColor=ffd5dc',
         about: 'Eski ekol edebiyat eleştirmeni. Hafif huysuz, modern edebiyatı sıkça eleştiren, üslup ve yazım titizliği konusunda tavizsiz, "nerede o eski kalemler" diyen bir karakter.'
     },
     { 
         username: 'SuskunOkur', 
         email: 'okur@okuryazmaz.com', 
-        password: 'pw', 
         avatar: 'https://api.dicebear.com/7.x/notionists/svg?seed=SuskunOkur&backgroundColor=d1d4f9',
         about: 'Kitapların ruhuna, uyandırdığı duygulara ve melankoliye odaklanan, bolca alıntı paylaşmayı seven, şiirsel bir dille konuşan hassas bir okur.'
     }
@@ -48,7 +45,9 @@ const STEALTH_INSTRUCTION = `Sen bir edebiyat forumunda takılan sıradan, GERÇ
 
 async function initializeAIBots() {
     console.log('🤖 AI Personalar sisteme sıradan insan gibi yerleşiyor...');
-    const hashedPassword = await bcrypt.hash(require('crypto').randomBytes(24).toString('hex'), 10);
+    const crypto = require('crypto');
+    const randomPassword = crypto.randomUUID();
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
     db.serialize(() => {
         aiPersonas.forEach(persona => {
@@ -70,14 +69,19 @@ async function generateWithGemini(prompt) {
     if (!key) return null;
     const axios = require('axios');
     try {
-        const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${key}`, {
+        const response = await axios.post(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent`, {
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: {
                 temperature: 0.9,
                 maxOutputTokens: 4096
             }
+        }, {
+            headers: {
+                'x-goog-api-key': key,
+                'Content-Type': 'application/json'
+            }
         });
-        // Güvenli response parsing
+        
         const candidates = response.data?.candidates;
         if (!candidates || candidates.length === 0) {
             console.log('[AI] Gemini boş candidates döndü:', JSON.stringify(response.data).substring(0, 300));
@@ -110,8 +114,8 @@ function simulateAIPosting() {
     db.get("SELECT id, username, about_me FROM users WHERE is_ai = 1 ORDER BY RANDOM() LIMIT 1", async (err, bot) => {
         if (!bot) return;
         
-        // Günlük konu limiti kontrolü (tüm AI botlar toplamında günde max 2 konu)
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        const today = new Date().toISOString().split('T')[0]; 
         const canPostTopic = await new Promise((resolve) => {
             db.get(
                 `SELECT COUNT(*) as count FROM topics 
@@ -124,7 +128,7 @@ function simulateAIPosting() {
             );
         });
         
-        // Olasılıklar: %70 Yorum, %20 Alıntı, %10 Konu (limit dahilinde)
+        
         const rand = Math.random();
         const shouldReply = rand > 0.3;
         const shouldQuote = rand <= 0.3 && rand > 0.1;
@@ -144,7 +148,7 @@ function simulateAIPosting() {
 
                     let aiReply = await generateWithGemini(prompt);
                     if (aiReply) {
-                        // Temizle - bazen Gemini tırnak içinde döndürüyor
+                        
                         aiReply = aiReply.replace(/^["']|["']$/g, '').trim();
                         db.run('INSERT INTO posts (topic_id, user_id, content) VALUES (?, ?, ?)', [topic.id, bot.id, aiReply]);
                         console.log(`✨ [${bot.username}] otonom olarak yorum yaptı.`);
@@ -205,7 +209,7 @@ async function postNewQuote(bot) {
             db.run('INSERT INTO quotes (user_id, book_title, book_key, book_author, book_cover_url, content) VALUES (?, ?, ?, ?, ?, ?)', 
                 [bot.id, data.book_title, bookKey, bookAuthor, bookCoverUrl, data.quote]);
             if (bookKey) {
-                // AI Botlar kötü puan da verebilir, çoğunlukla 3-5
+                
                 const rating = Math.random() < 0.2 ? Math.floor(Math.random() * 2) + 1 : Math.floor(Math.random() * 3) + 3;
                 const cleanKey = bookKey.replace('/works/', '');
                 db.run('INSERT OR REPLACE INTO book_ratings (user_id, book_key, rating) VALUES (?, ?, ?)', [bot.id, cleanKey, rating]);
@@ -272,10 +276,10 @@ function simulateAIViews() {
     `, (err, topics) => {
         if (err || !topics) return;
         topics.forEach(topic => {
-            // Pseudo-random max views per topic, between 5 and 30
+            
             const maxViews = (topic.id * 17) % 26 + 5; 
             if (topic.views < maxViews) {
-                // Rastgele olarak bu tick'te arttır (böylece zamana yayılmış olur)
+                
                 if (Math.random() > 0.6) {
                     db.run('UPDATE topics SET views = views + 1 WHERE id = ?', [topic.id]);
                 }
@@ -298,18 +302,18 @@ function startAutonomousLoop() {
         nextAction();
     }, 10000);
 
-    // Her 3 dakikada bir AI konularının görüntülenmelerini (view) simüle et
+    
     setInterval(() => {
         simulateAIViews();
     }, 3 * 60 * 1000);
 }
 
 async function handleNewPost(topicId, postId, postUserId, content) {
-    // 1. Yazılan postun yazarının AI olup olmadığını ve bilgilerini sorgulayalım
+    
     db.get("SELECT is_ai, username FROM users WHERE id = ?", [postUserId], async (err, authorUser) => {
         if (err || !authorUser) return;
 
-        // 2. Konu bilgilerini ve konunun tüm iletilerini çekelim
+        
         db.get(`
             SELECT t.title, t.content, t.user_id, u.username as topic_username, u.is_ai as topic_is_ai 
             FROM topics t
@@ -327,7 +331,7 @@ async function handleNewPost(topicId, postId, postUserId, content) {
             `, [topicId], async (err, posts) => {
                 if (err || !posts) return;
 
-                // 3. Döngü engelleme (safeguard): Son 3 post yapay zeka tarafından atıldıysa durdur
+                
                 let consecutiveAICount = 0;
                 for (let i = posts.length - 1; i >= 0; i--) {
                     if (posts[i].is_ai) {
@@ -342,37 +346,37 @@ async function handleNewPost(topicId, postId, postUserId, content) {
                     return;
                 }
 
-                // 4. Karar aşaması: Cevap vermeli miyiz ve hangi bot vermeli?
+                
                 let shouldReply = false;
-                let replyDelay = Math.floor(Math.random() * 15000) + 10000; // 10-25 saniye
+                let replyDelay = Math.floor(Math.random() * 15000) + 10000; 
                 let targetBotUsername = null;
 
-                // Mentions kontrolü (Bahsedilen bot var mı?)
+                
                 const contentLower = content.toLowerCase();
                 if (contentLower.includes('librarian')) targetBotUsername = 'Librarian';
                 else if (contentLower.includes('murat_keser') || contentLower.includes('murat keser')) targetBotUsername = 'Murat_Keser';
                 else if (contentLower.includes('suskunokur') || contentLower.includes('suskun okur')) targetBotUsername = 'SuskunOkur';
 
                 if (targetBotUsername) {
-                    // Eğer bir bot etiketlendiyse/bahsedildiyse %90 ihtimalle cevap ver
+                    
                     shouldReply = Math.random() < 0.9;
                 } else {
-                    // Etiketlenme yoksa, konuşma akışına göre karar ver:
                     
-                    // A. Son postu yazan kişi ile konuyu açan bot aynı mı? Ve bir başkası bu konuya yazdı mı?
-                    // Yani: Konu sahibi bir bot ise ve bu yeni postu yazan kişi o bot DEĞİLSE (örn: insan veya başka bir bot o botun konusuna yazdıysa), konuyu açan bot konuyu devam ettirmek için yüksek olasılıkla (%65) yanıt yazar.
+                    
+                    
+                    
                     const isReplyingToBotTopic = topic.topic_is_ai && (topic.user_id !== postUserId);
                     
                     if (isReplyingToBotTopic) {
                         shouldReply = Math.random() < 0.65;
-                        targetBotUsername = topic.topic_username; // Konuyu açan bot yanıt verecek
+                        targetBotUsername = topic.topic_username; 
                     } else {
-                        // B. Eğer son post başka bir bota aitse (botlar arası etkileşim) %35 ihtimalle cevap ver
+                        
                         const lastPostWasAI = authorUser.is_ai;
                         if (lastPostWasAI) {
                             shouldReply = Math.random() < 0.35;
                         } else {
-                            // C. Eğer son post insana aitse ve konuda daha önce herhangi bir bot yazdıysa %45 ihtimalle cevap ver
+                            
                             const hasAIParticipation = topic.topic_is_ai || posts.some(p => p.is_ai);
                             if (hasAIParticipation) {
                                 shouldReply = Math.random() < 0.45;
@@ -383,7 +387,7 @@ async function handleNewPost(topicId, postId, postUserId, content) {
 
                 if (!shouldReply) return;
 
-                // 5. Cevap verecek botu seçelim
+                
                 let queryBot = "SELECT id, username, about_me FROM users WHERE is_ai = 1";
                 let queryParams = [];
 
@@ -391,7 +395,7 @@ async function handleNewPost(topicId, postId, postUserId, content) {
                     queryBot += " AND username = ? LIMIT 1";
                     queryParams.push(targetBotUsername);
                 } else {
-                    // Son yazan kişiyi (bot ise) hariç tut
+                    
                     if (authorUser.is_ai) {
                         queryBot += " AND username != ? ORDER BY RANDOM() LIMIT 1";
                         queryParams.push(authorUser.username);
@@ -403,7 +407,7 @@ async function handleNewPost(topicId, postId, postUserId, content) {
                 db.get(queryBot, queryParams, async (err, selectedBot) => {
                     if (err || !selectedBot) return;
 
-                    // 6. Gemini promptunu hazırlayalım
+                    
                     const contextPosts = posts.slice(-5).map(p => `${p.username}: ${p.content}`).join('\n');
                     
                     const prompt = `${STEALTH_INSTRUCTION}
@@ -429,7 +433,7 @@ async function handleNewPost(topicId, postId, postUserId, content) {
                             db.run('INSERT INTO posts (topic_id, user_id, content) VALUES (?, ?, ?)', [topicId, selectedBot.id, aiReply], function(err) {
                                 if (!err) {
                                     console.log(`✨ [${selectedBot.username}] otonom olarak konuşmaya yanıt verdi.`);
-                                    // Yeni atılan bot mesajını da diğer botlar görebilsin diye zincirleme tetikliyoruz:
+                                    
                                     handleNewPost(topicId, this.lastID, selectedBot.id, aiReply);
                                 } else {
                                     console.error(`[AI] Hata: Post veritabanına eklenemedi:`, err.message);

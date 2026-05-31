@@ -3,7 +3,11 @@ const router = express.Router();
 const db = require('../database/db');
 const jwt = require('jsonwebtoken');
 
-const SECRET_KEY = process.env.JWT_SECRET || 'okuryazmaz_super_secret_dev_key';
+
+if (!process.env.JWT_SECRET) {
+    throw new Error('FATAL ERROR: JWT_SECRET environment variable is not defined.');
+}
+const SECRET_KEY = process.env.JWT_SECRET;
 
 function requireAuth(req, res, next) {
     const authHeader = req.headers['authorization'];
@@ -22,14 +26,20 @@ router.get('/', requireAuth, (req, res) => {
             LEFT JOIN users u ON n.sender_id = u.id 
             WHERE n.user_id = ? 
             ORDER BY n.created_at DESC LIMIT 50`, [req.user.id], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            console.error('[NOTIFICATION GET ERROR]', err);
+            return res.status(500).json({ error: 'Bildirimler yüklenirken veritabanı hatası oluştu.' });
+        }
         res.json(rows);
     });
 });
 
 router.put('/mark-read', requireAuth, (req, res) => {
     db.run('UPDATE notifications SET is_read = 1 WHERE user_id = ?', [req.user.id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
+        if (err) {
+            console.error('[NOTIFICATION MARK READ ERROR]', err);
+            return res.status(500).json({ error: 'İşlem gerçekleştirilemedi.' });
+        }
         res.json({ message: 'Tüm sayfalar okundu.' });
     });
 });

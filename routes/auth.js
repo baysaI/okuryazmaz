@@ -4,16 +4,31 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const db = require('../database/db');
 
-const SECRET_KEY = process.env.JWT_SECRET || 'okuryazmaz_super_secret_dev_key';
+
+if (!process.env.JWT_SECRET) {
+    throw new Error('FATAL ERROR: JWT_SECRET environment variable is not defined.');
+}
+const SECRET_KEY = process.env.JWT_SECRET;
 
 router.post('/register', async (req, res) => {
     const { username, email, password } = req.body;
     if (!username || !password || !email) return res.status(400).json({ error: 'Kullanıcı adı, e-posta ve şifre zorunludur.' });
 
-    // Ensure username does not contain spaces if we want, but the prompt didn't say that.
     
-    // Get IP address
-    const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+    const usernameRegex = /^[a-zA-Z0-9_ğüşıöçĞÜŞİÖÇ\s-]{3,20}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!usernameRegex.test(username.trim())) {
+        return res.status(400).json({ error: 'Kullanıcı adı 3-20 karakter arasında olmalı ve sadece harf, sayı, boşluk, alt çizgi, tire içermelidir.' });
+    }
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Geçersiz e-posta adresi.' });
+    }
+    if (password.length < 6) {
+        return res.status(400).json({ error: 'Şifre en az 6 karakter olmalıdır.' });
+    }
+    
+    
+    const ipAddress = req.ip || req.socket.remoteAddress || '127.0.0.1';
 
     try {
         db.get('SELECT * FROM users WHERE LOWER(username) = LOWER(?) OR email = ? OR ip_address = ?', [username, email, ipAddress], async (err, row) => {
@@ -35,12 +50,13 @@ router.post('/register', async (req, res) => {
                 }
             }
 
-            // No conflicts found, proceed with creation
+            
             const hashedPassword = await bcrypt.hash(password, 10);
             const initial = username.charAt(0).toUpperCase();
             const avatar_url = `https://api.dicebear.com/7.x/initials/svg?seed=${initial}&backgroundColor=2A2826&textColor=D4AF37&bold=true`;
 
-            const is_admin = username.toLowerCase() === 'mehmet' ? 1 : 0;
+            
+            const is_admin = 0;
             const insertStmt = db.prepare('INSERT INTO users (username, email, password, avatar_url, is_admin, ip_address) VALUES (?, ?, ?, ?, ?, ?)');
             
             insertStmt.run([username, email, hashedPassword, avatar_url, is_admin, ipAddress], function(err) {
@@ -69,9 +85,9 @@ router.post('/login', (req, res) => {
             return res.status(403).json({ error: `Hesabınız yasaklandı. Sebep: ${user.ban_reason || 'Belirtilmemiş'}` });
         }
 
-        if (user.username.toLowerCase() === 'mehmet' && !user.is_admin) {
-            db.run('UPDATE users SET is_admin = 1 WHERE id = ?', [user.id]);
-            user.is_admin = 1;
+        
+        if (user.is_ai) {
+            return res.status(403).json({ error: 'Yapay zeka hesapları bu kapıdan giriş yapamaz.' });
         }
 
         const token = jwt.sign({ id: user.id, username: user.username, is_admin: user.is_admin }, SECRET_KEY, { expiresIn: '24h' });
