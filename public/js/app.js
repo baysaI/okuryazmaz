@@ -474,7 +474,6 @@ const app = {
                     delay += 1800;
                     setTimeout(() => {
                         intro.classList.add('zoom-out');
-                        // Store current timestamp so intro won't replay for 12 hours
                         localStorage.setItem('okuryazmaz_intro_seen', Date.now().toString());
                         setTimeout(() => {
                             intro.remove();
@@ -2693,4 +2692,4 @@ const app = {
     }
 };
 
-window.onload = app.init;
+document.addEventListener('DOMContentLoaded', app.init);

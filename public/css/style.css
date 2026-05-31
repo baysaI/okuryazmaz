@@ -1373,10 +1373,11 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
 
 .intro-cover-front {
     z-index: 20;
-    transform: rotateY(0deg);
+    transform: translateZ(5px);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
-/* Dev Altın Marka Kalem Ucu Kabartma Efekti (Emboss) */
 .cover-emboss-icon {
     position: absolute;
     top: 50%; left: 50%;
@@ -1388,12 +1389,12 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
 }
 
 .intro-cover-back {
-    transform: translateZ(-8px);
+    transform: translateZ(-5px);
     z-index: 1;
 }
 
 .intro-book-3d.open .intro-cover-front {
-    transform: rotateY(-155deg);
+    transform: rotateY(-155deg) translateZ(5px);
 }
 
 .intro-pages {
@@ -1401,6 +1402,7 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent-gold); b
     width: 98%; height: 96%;
     top: 2%; left: 1%;
     transform-style: preserve-3d;
+    transform: translateZ(1px);
     z-index: 10;
 }
 
