@@ -1,3 +1,4 @@
 node_modules/
 .env
 database/sitemap_cache.json
+database/okuryazmaz.db
